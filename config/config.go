@@ -3,10 +3,13 @@ package config
 import "encoding/json"
 
 type Config struct {
-	Name              string               `json:"name"`
-	DatabaseConfig    InfluxDBConfig       `json:"influxdb_config"`
-	WeatherAPIConfig  OpenWeatherMapConfig `json:"weather_api_config"`
-	RemoteUnitConfigs []RemoteUnitConfig   `json:"remote_configs"`
+	Name                   string               `json:"name"`
+	WeatherIntervalSeconds uint                 `json:"weather_scrape_interval"`
+	RemoteIntervalSeconds  uint                 `json:"remote_interval_seconds"`
+	SerialConfig           SerialConfig         `json:"serial_config"`
+	DatabaseConfig         InfluxDBConfig       `json:"influxdb_config"`
+	WeatherAPIConfig       OpenWeatherMapConfig `json:"weather_api_config"`
+	RemoteUnitConfigs      []RemoteUnitConfig   `json:"remote_configs"`
 }
 
 type RemoteUnitConfig struct {
@@ -37,7 +40,14 @@ type SerialConfig struct {
 
 func MakeExampleConfig() Config {
 	return Config{
-		Name: "example_system_config",
+		Name:                   "example_system_config",
+		WeatherIntervalSeconds: 3600,
+		RemoteIntervalSeconds:  60,
+		SerialConfig: SerialConfig{
+			Port:           "/dev/tty2s",
+			BaudRate:       115200,
+			TimeoutSeconds: 5,
+		},
 		DatabaseConfig: InfluxDBConfig{
 			URL:          "http://localhost:8086",
 			Organisation: "My_Organisation",
