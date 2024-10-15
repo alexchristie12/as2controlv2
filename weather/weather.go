@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 // This package is intended to pull data from Openweather map, for now we are only doing current data
@@ -75,6 +76,12 @@ type Sys struct {
 	Sunset  uint   `json:"sunset"`
 }
 
+type RainResult struct {
+	Date                 string  `json:"date"`
+	TotalRain            float64 `json:"rain"`
+	NumberOfMeasurements uint    `json:"count"`
+}
+
 func WeatherInit(conf config.OpenWeatherMapConfig) WeatherAPI {
 	return WeatherAPI{
 		URL:       conf.URL,
@@ -108,4 +115,32 @@ func (w *WeatherAPI) GetCurrentWeather() (CurrentWeatherResult, error) {
 	}
 
 	return result, nil
+}
+
+func (w *WeatherAPI) GetYesterdaysRain() (RainResult, error) {
+	timeNow := time.Now().Unix()
+	timeYesterday := time.Now().Add(-24 * time.Hour).Unix()
+	fullUrl := fmt.Sprintf("http://history.openweathermap.org/data/2.5/history/accumulated_precipitation?lat=%f&long=%f&start=%d&end=%d&appid=%s", w.Latitude, w.Longitude, timeYesterday, timeNow, w.Token)
+	resp, err := http.Get(fullUrl)
+	if err != nil {
+		return RainResult{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return RainResult{}, errors.New(fmt.Sprint("unexpected status code: ", resp.StatusCode))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return RainResult{}, err
+	}
+
+	var result RainResult
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return RainResult{}, err
+	}
+
+	return result, err
 }
