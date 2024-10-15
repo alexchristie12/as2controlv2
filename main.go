@@ -2,6 +2,8 @@ package main
 
 import (
 	"as2controlv2/config"
+	"as2controlv2/db"
+	"as2controlv2/weather"
 	"fmt"
 	"os"
 )
@@ -47,8 +49,14 @@ func main() {
 		}
 
 		// Load up the Datbase connection
+		dbHandler, err := db.DBInit(conf.DatabaseConfig)
+		if err != nil {
+			fmt.Println("Error loading database config: ", err.Error())
+			os.Exit(1)
+		}
 
 		// Load up the open weather map connection
+		weatherHandler := weather.WeatherInit(conf.WeatherAPIConfig)
 
 		// Load the serial connection
 	}

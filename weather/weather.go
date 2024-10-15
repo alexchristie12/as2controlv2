@@ -1,6 +1,7 @@
 package weather
 
 import (
+	"as2controlv2/config"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -72,6 +73,15 @@ type Sys struct {
 	Country string `json:"country"`
 	Sunrise uint   `json:"sunrise"`
 	Sunset  uint   `json:"sunset"`
+}
+
+func WeatherInit(conf config.OpenWeatherMapConfig) WeatherAPI {
+	return WeatherAPI{
+		URL:       conf.URL,
+		Token:     conf.Token,
+		Latitude:  conf.Latitude,
+		Longitude: conf.Longitude,
+	}
 }
 
 func (w *WeatherAPI) GetCurrentWeather() (CurrentWeatherResult, error) {

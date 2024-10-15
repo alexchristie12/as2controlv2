@@ -1,0 +1,8 @@
+// This is what the location checking part looks like
+
+[{"name":"Townsville","local_names":{"ja":"タウンズビル","ru":"Таунсвилл","zh":"汤斯维尔","en":"Townsville"},"lat":-19.2569391,"lon":146.8239537,"country":"AU","state":"Queensland"}]
+
+// This is what the current weather data stuff looks like
+// Please not that the temperature is in kelvin
+
+{"coord":{"lon":146.824,"lat":-19.2569},"weather":[{"id":801,"main":"Clouds","description":"few clouds","icon":"02d"}],"base":"stations","main":{"temp":301.14,"feels_like":302.26,"temp_min":301.14,"temp_max":301.14,"pressure":1013,"humidity":57,"sea_level":1013,"grnd_level":1012},"visibility":10000,"wind":{"speed":8.75,"deg":60},"clouds":{"all":20},"dt":1728971232,"sys":{"type":1,"id":9508,"country":"AU","sunrise":1728934966,"sunset":1728980034},"timezone":36000,"id":2146142,"name":"Townsville","cod":200}

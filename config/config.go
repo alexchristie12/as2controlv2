@@ -30,8 +30,9 @@ type OpenWeatherMapConfig struct {
 }
 
 type SerialConfig struct {
-	Port     string `json:"serial_port"`
-	BaudRate uint   `json:"baud_rate"`
+	Port           string `json:"serial_port"`
+	BaudRate       uint   `json:"baud_rate"`
+	TimeoutSeconds uint   `json:"timeout_sec"`
 }
 
 func MakeExampleConfig() Config {
