@@ -6,8 +6,6 @@ import (
 	"os"
 )
 
-const BACKUP_TOKEN = "1vCqkEI_vBPdjuoOBrFNI5JA2yIV3C8DnD2C3KyWpgq3XWkdAXM7cHbo2fAxh5jZt2ppFhD2Q1PRoO99bBuArw=="
-
 func main() {
 
 	// Take in a config.json as the config, and then load it, the argument
