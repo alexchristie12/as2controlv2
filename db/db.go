@@ -2,6 +2,7 @@ package db
 
 import (
 	"as2controlv2/config"
+	"as2controlv2/serial"
 	"context"
 	"errors"
 	"time"
@@ -75,4 +76,20 @@ func (db *DBConnection) WriteStatusMetric(tags Tags, status uint) error {
 // Write a current weather prediction from Openweather map
 func (db *DBConnection) WriteCurrentWeatherData( /*Need to implement*/ ) error {
 	return errors.New("not yet implemented")
+}
+
+// This function write multiple sensor readings pulling the the correspoding remote unit, hence the config
+func (db *DBConnection) WriteSensorReadings(readings []serial.SensorReading, conf config.RemoteUnitConfig, systemName string) error {
+	// Construct the tags
+	tags := Tags{
+		SystemName:     systemName,
+		RemoteUnitName: conf.UnitName,
+	}
+	for _, r := range readings {
+		err := db.WriteSensorMetric(r.Name, float64(r.Value), tags)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
