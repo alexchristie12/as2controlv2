@@ -4,6 +4,7 @@ import "encoding/json"
 
 type Config struct {
 	Name                   string               `json:"name"`
+	Mode                   string               `json:"mode"` // This can be either automatic, or manual
 	WeatherIntervalSeconds uint                 `json:"weather_scrape_interval"`
 	RemoteIntervalSeconds  uint                 `json:"remote_interval_seconds"`
 	SerialConfig           SerialConfig         `json:"serial_config"`
@@ -16,6 +17,7 @@ type RemoteUnitConfig struct {
 	UnitName   string `json:"name"`
 	BLEAddress string `json:"ble_address"`
 	UnitNumber uint   `json:"number"`
+	SoilType   string `json:"soil_type"` // Can be clay, sand, loam
 }
 
 type InfluxDBConfig struct {
