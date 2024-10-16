@@ -3,6 +3,7 @@ package main
 import (
 	"as2controlv2/config"
 	"as2controlv2/db"
+	"as2controlv2/serial"
 	"as2controlv2/weather"
 	"fmt"
 	"os"
@@ -59,5 +60,11 @@ func main() {
 		weatherHandler := weather.WeatherInit(conf.WeatherAPIConfig)
 
 		// Load the serial connection
+		serialHandler, err := serial.SerialConnectionInit(conf.SerialConfig)
+		if err != nil {
+			fmt.Println("Error loading serial connection config: ", err.Error())
+		}
+
+		// Now enter the loop, spawn each process in a separate thread
 	}
 }
