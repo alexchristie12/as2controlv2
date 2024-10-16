@@ -21,6 +21,9 @@ type CurrentLocalValues struct {
 	avgSoilMoisture float64
 }
 
+type CurrentPrediction struct {
+}
+
 func (cs *ControlSystem) FetchRemoteUnitReadings() error {
 	// For each remote unit, grab all the values
 	for _, rmu := range cs.systemConfig.RemoteUnitConfigs {
@@ -50,7 +53,9 @@ func (cs *ControlSystem) FetchWeatherData() error {
 		return err
 	}
 	// Set the control system based on the weather results
-	// Come up with some recomendations
+	// Come up with some recommendations if we have three mm or rain or
+	// more, we can delay our next watering session by a day, if we get
+	// 9mm or rain, we can delay it by two days
 
 	return nil
 }
@@ -61,6 +66,8 @@ func (cs *ControlSystem) FetchRainData() error {
 		return err
 	}
 	// Send of this data and make recommendations based on that
+	// I think that if we got 4mm of rain that day, we don't need
+	// to water the grass
 
 	return nil
 }

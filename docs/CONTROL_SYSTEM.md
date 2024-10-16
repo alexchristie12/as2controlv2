@@ -20,7 +20,7 @@ We have four types of Grass with each of the following conditions:
 All four grass are drought since they are grown in North Queensland where
 droughts are prominent. Since only the relative humidity range for ideal growth
 for Kikuyu grass could only be found but all grass types portray similar
-growing conditions for all grass types should have a realtive humidity between
+growing conditions for all grass types should have a relative humidity between
 45% and 75%.
 
 ## Permanent Wilting Point
@@ -28,12 +28,22 @@ growing conditions for all grass types should have a realtive humidity between
 Permanent wilting point, PWP, is the minimum amount of water in the soil that
 the plant requires not to wilt. This is important for ideal plant growth as
 each type of soil has a different PWP, with plants typically having a PWP of
-1500kPa. There is a trendline in the document.
+1500kPa. There is a trend line in the document.
 
 Summary of findings: soil moisture must stay above 20% to ensure that the grass
-does not start to wilt. Grass has a higher humidty in the morning (morning dew)
+does not start to wilt. Grass has a higher humidity in the morning (morning dew)
 and lower at 6PM. We have some ideal conditions:
 
 - Moisture level must stay above 20%
-- Temperature should remain between 15 and 30 degrees celcius
+- Temperature should remain between 15 and 30 degrees celsius
 - Relative humidity should remain between 45 and 75%
+
+## Number Crunching
+
+- For an average outdoor house tap, we get a flow rate of ~20L/min abd we have an
+  average sprinkler radius of ~3m, we after 30 minutes of watering we have 20mm of
+  watering performed. We can base it off of that. So if we get 20mm of rain, we don't
+  need to water that week. If we get 10mm of rain, we only need to water for 15 minutes
+
+- If we get much more like 30mm of rain, we might not always want to delay our watering
+  by 1.5 weeks, so we might want diminishing returns.
