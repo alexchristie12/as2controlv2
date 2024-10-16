@@ -47,3 +47,12 @@ and lower at 6PM. We have some ideal conditions:
 
 - If we get much more like 30mm of rain, we might not always want to delay our watering
   by 1.5 weeks, so we might want diminishing returns.
+  
+- Even if we get the maximum, we will likely water anyways sometime in the week, this
+  should be based on the soil moisture readings. If it is dry, we should water within a
+  few days, if it is wet, then we should delay it, and if it is in the middle, it is
+  business as usual.
+  
+- The temperature data will affect how often we should water, along with the overall
+  health of the grass, if it is too low or high we should indicate that the grass is
+  unhealthy
