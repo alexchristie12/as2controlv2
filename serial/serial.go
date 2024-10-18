@@ -12,12 +12,12 @@ import (
 
 type SerialConnection struct {
 	conn           *tarmSerial.Port
-	receieveBuffer [16384]byte
+	receieveBuffer [512]byte
 }
 
 type SensorReading struct {
 	Name  string
-	Value float32
+	Value float64
 }
 
 func SerialConnectionInit(conf config.SerialConfig) (SerialConnection, error) {
@@ -48,24 +48,35 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 	}
 
 	// In this case we don't care about how many bytes were read, as this is handling in the parsing
-	_, err = sc.conn.Read(sc.receieveBuffer[:])
-	if err != nil {
-		return nil, err
+	// We need to read until we get a \n
+	readContents := make([]byte, 0)
+	for {
+		n, err := sc.conn.Read(sc.receieveBuffer[:])
+		if err != nil {
+			return nil, err
+		}
+		readContents = append(readContents, sc.receieveBuffer[:n]...)
+		if strings.Contains(string(sc.receieveBuffer[:n]), "\n") {
+			break
+		}
 	}
 	// Otherwise parse out everything. It is all in keyvalue pairs
-	byteStr := string(sc.receieveBuffer[:])
+	byteStr := string(readContents)
+	fmt.Println("Read contents")
 	// Split on commas
-	sensorParts := strings.Split(byteStr, ",")
+	sensorParts := strings.Split(strings.Trim(byteStr, "\r\n\t "), ",")
 	sensorReadings := make([]SensorReading, len(sensorParts))
 	// Now separate out on the '='
 	for i, sp := range sensorParts {
 		readingParts := strings.Split(sp, "=")
 		// First part is name, second is reading, so parse the reading
-		value, err := strconv.ParseFloat(readingParts[1], 32)
+		readingParts[0] = strings.Trim(readingParts[0], "\r\n\t ")
+		readingParts[1] = strings.Trim(readingParts[1], "\r\n\t ")
+		value, err := strconv.ParseFloat(readingParts[1], 64)
 		if err != nil {
 			return nil, err
 		}
-		sensorReadings[i] = SensorReading{Name: readingParts[0], Value: float32(value)}
+		sensorReadings[i] = SensorReading{Name: readingParts[0], Value: value}
 	}
 	return sensorReadings, nil
 }

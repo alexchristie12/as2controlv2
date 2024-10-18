@@ -1,6 +1,8 @@
 package config
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type Config struct {
 	Name                   string               `json:"name"`
@@ -46,7 +48,7 @@ func MakeExampleConfig() Config {
 		WeatherIntervalSeconds: 3600,
 		RemoteIntervalSeconds:  60,
 		SerialConfig: SerialConfig{
-			Port:           "/dev/tty2s",
+			Port:           "/dev/ttyS0",
 			BaudRate:       115200,
 			TimeoutSeconds: 5,
 		},
@@ -109,4 +111,56 @@ func LoadConfig(bytes []byte) (Config, error) {
 		return Config{}, err
 	}
 	return conf, nil
+}
+
+func MakeTestingConfig() Config {
+	return Config{
+		Name:                   "example_system_config",
+		WeatherIntervalSeconds: 3600,
+		RemoteIntervalSeconds:  60,
+		SerialConfig: SerialConfig{
+			Port:           "/dev/ttyS0",
+			BaudRate:       115200,
+			TimeoutSeconds: 5,
+		},
+		DatabaseConfig: InfluxDBConfig{
+			URL:          "http://localhost:8086",
+			Organisation: "Water_Monitoring",
+			Bucket:       "testing",
+			Token:        "1vCqkEI_vBPdjuoOBrFNI5JA2yIV3C8DnD2C3KyWpgq3XWkdAXM7cHbo2fAxh5jZt2ppFhD2Q1PRoO99bBuArw==",
+		},
+		WeatherAPIConfig: OpenWeatherMapConfig{
+			URL:       "http://api.openweathermap.org",
+			Token:     "4805d72f92a507f6872ebcc184915143",
+			Latitude:  -19.2569391,
+			Longitude: 146.8239537,
+		},
+		RemoteUnitConfigs: []RemoteUnitConfig{
+			{
+				UnitName:   "unit_1",
+				BLEAddress: "",
+				UnitNumber: 1,
+			},
+			// {
+			// 	UnitName:   "unit_2",
+			// 	BLEAddress: "FF:FF:FF:FF:FF:FF",
+			// 	UnitNumber: 2,
+			// },
+			// {
+			// 	UnitName:   "unit_3",
+			// 	BLEAddress: "FF:FF:FF:FF:FF:FF",
+			// 	UnitNumber: 3,
+			// },
+			// {
+			// 	UnitName:   "unit_4",
+			// 	BLEAddress: "FF:FF:FF:FF:FF:FF",
+			// 	UnitNumber: 4,
+			// },
+			// {
+			// 	UnitName:   "unit_5",
+			// 	BLEAddress: "FF:FF:FF:FF:FF:FF",
+			// 	UnitNumber: 5,
+			// },
+		},
+	}
 }

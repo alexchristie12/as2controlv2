@@ -12,7 +12,7 @@ import (
 )
 
 type ControlSystem struct {
-	logger slog.Logger
+	logger *slog.Logger
 
 	systemConfig config.Config // We want to be able to access all of our config
 
@@ -23,6 +23,7 @@ type ControlSystem struct {
 	yesterdaysRainValue   weather.RainResult           // The rain from the previous day
 	currentSensorAverages []CurrentLocalValues         // The current average from all the sensor readings
 	wateringStats         []WateringStats              // Store information on whether we need to water a particular zone
+	systemTiming          Timings                      // The time coordination for the whole system
 }
 
 type CurrentLocalValues struct {
@@ -45,7 +46,14 @@ type WateringStats struct {
 	TimeToNextWater    time.Time // The time until we should water again
 }
 
-func ControlSystemInit(logger slog.Logger, config config.Config, dbHandler db.DBConnection, weatherHandler weather.WeatherAPI, serialHandler serial.SerialConnection) *ControlSystem {
+type Timings struct {
+	NextRemoteUnitFetchTime    time.Time         // The next time to fetch data from the remote units
+	NextWeatherReportFetchTime time.Time         // The next time to fetch weather data from open weather map
+	NextRainReportFetchTime    time.Time         // The next time to fetch rain data from open weather map
+	NextWateringTime           map[int]time.Time // In this case the keys are the corresponding zone
+}
+
+func ControlSystemInit(logger *slog.Logger, config config.Config, dbHandler db.DBConnection, weatherHandler weather.WeatherAPI, serialHandler serial.SerialConnection) *ControlSystem {
 	return &ControlSystem{
 		systemConfig:          config,
 		logger:                logger,
@@ -56,6 +64,16 @@ func ControlSystemInit(logger slog.Logger, config config.Config, dbHandler db.DB
 		yesterdaysRainValue:   weather.RainResult{},
 		currentSensorAverages: make([]CurrentLocalValues, len(config.RemoteUnitConfigs)),
 		wateringStats:         makeWateringStats(config.RemoteUnitConfigs),
+		systemTiming:          makeTimings(),
+	}
+}
+
+func makeTimings() Timings {
+	return Timings{
+		NextRemoteUnitFetchTime:    time.Now(),
+		NextWeatherReportFetchTime: time.Now(),
+		NextRainReportFetchTime:    time.Now(),
+		NextWateringTime:           make(map[int]time.Time),
 	}
 }
 
@@ -88,7 +106,7 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 		cs.logger.Warn("hardware ID is not the first value sent in poll, please validate data link integrity")
 	}
 
-	if hardwareID != float32(rmu.UnitNumber) {
+	if hardwareID != float64(rmu.UnitNumber) {
 		cs.logger.Warn("hardware ID does not match one specified in poll, please check bluetooth link configuration")
 	}
 
@@ -102,20 +120,32 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 
 	for _, r := range readings {
 		if strings.Contains(strings.ToLower(r.Name), "temperature") {
+			if r.Value > 9000 {
+				// Its over 9000!!!
+				continue
+			}
 			temperatureCount++
-			temperaturesSum += float64(r.Value)
+			temperaturesSum += r.Value
 			continue
 		}
 
 		if strings.Contains(strings.ToLower(r.Name), "humidity") {
+			if r.Value > 9000 {
+				// Its over 9000!!!
+				continue
+			}
 			humidityCount++
-			humiditySum += float64(r.Value)
+			humiditySum += r.Value
 			continue
 		}
 
 		if strings.Contains(strings.ToLower(r.Name), "soil_moisture") {
+			if r.Value > 9000 {
+				// Its over 9000!!!
+				continue
+			}
 			soilMoistureCount++
-			soilMositureSum += float64(r.Value)
+			soilMositureSum += r.Value
 			continue
 		}
 	}
@@ -125,7 +155,7 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 
 	if lastReading.Name != "flow_rate" {
 		cs.logger.Warn("flow rate is not last value in poll, please verify data integrity")
-		currentValues.FlowRate = float64(lastReading.Value)
+		currentValues.FlowRate = lastReading.Value
 	}
 
 	currentValues.Temperature = temperaturesSum / float64(temperatureCount)
@@ -195,8 +225,10 @@ func (cs *ControlSystem) CheckWatering() {
 			// callback, that is cancelled by an endpoint at /-/cancel?id=x
 			if cs.systemConfig.Mode == "automatic" {
 				// Spawn the timer, with the deadline
+				cs.systemTiming.NextWateringTime[int(cs.systemConfig.RemoteUnitConfigs[i].UnitNumber)] = time.Now().Add(20 * time.Minute)
 			} else if cs.systemConfig.Mode == "manual" {
 				// Just suggest that we water, send shit to Grafana
+				// Work out how I am going to send off the warnings
 			}
 		}
 	}
