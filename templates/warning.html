@@ -1,0 +1,10 @@
+<h1>Sensor Warnings</h1>
+{{range .SensorWarnings}}
+<div>
+    <h2>{{.Name}}</h2>
+    <p>Value: {{.Value}}</p>
+    <p>Message: {{.Msg}}</p>
+</div>
+{{else}}
+<p>No warnings available</p>
+{{end}}

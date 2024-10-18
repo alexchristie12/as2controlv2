@@ -2,6 +2,7 @@ package serial
 
 import (
 	"as2controlv2/config"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -79,4 +80,15 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 		sensorReadings[i] = SensorReading{Name: readingParts[0], Value: value}
 	}
 	return sensorReadings, nil
+}
+
+func (sc *SerialConnection) WriteToDevice(msg string) error {
+	n, err := sc.conn.Write([]byte(msg))
+	if n != len(msg) {
+		return errors.New("could not write full length of message")
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }

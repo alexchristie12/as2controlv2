@@ -47,10 +47,11 @@ type WateringStats struct {
 }
 
 type Timings struct {
-	NextRemoteUnitFetchTime    time.Time         // The next time to fetch data from the remote units
-	NextWeatherReportFetchTime time.Time         // The next time to fetch weather data from open weather map
-	NextRainReportFetchTime    time.Time         // The next time to fetch rain data from open weather map
-	NextWateringTime           map[int]time.Time // In this case the keys are the corresponding zone
+	NextRemoteUnitFetchTime    time.Time          // The next time to fetch data from the remote units
+	NextWeatherReportFetchTime time.Time          // The next time to fetch weather data from open weather map
+	NextRainReportFetchTime    time.Time          // The next time to fetch rain data from open weather map
+	NextWateringTime           map[uint]time.Time // In this case the keys are the corresponding zone, deleted after we are done
+	WateringUntilTime          map[uint]time.Time // This is where we store the time we water until, deleted after we are done
 }
 
 func ControlSystemInit(logger *slog.Logger, config config.Config, dbHandler db.DBConnection, weatherHandler weather.WeatherAPI, serialHandler serial.SerialConnection) *ControlSystem {
@@ -73,7 +74,7 @@ func makeTimings() Timings {
 		NextRemoteUnitFetchTime:    time.Now(),
 		NextWeatherReportFetchTime: time.Now(),
 		NextRainReportFetchTime:    time.Now(),
-		NextWateringTime:           make(map[int]time.Time),
+		NextWateringTime:           make(map[uint]time.Time),
 	}
 }
 
@@ -87,6 +88,7 @@ func makeWateringStats(configs []config.RemoteUnitConfig) []WateringStats {
 
 func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, currentValues *CurrentLocalValues) error {
 	readings, err := cs.serialHandler.PollDevice(rmu.UnitNumber)
+	cs.logger.Debug(fmt.Sprint(readings))
 	if err != nil {
 		cs.logger.Error(fmt.Sprintf("could not get readings from device zone id: %d", rmu.UnitNumber))
 		return err
@@ -174,6 +176,16 @@ func (cs *ControlSystem) FetchRemoteUnitReadings() error {
 		if err != nil {
 			return err
 		}
+		// Then change the connection
+		if len(cs.systemConfig.RemoteUnitConfigs) == 1 {
+			// Just move on
+			break
+		}
+		// Otherwise switch to the next unit
+		err = cs.ChangeActiveConnection(rmu.UnitNumber)
+		if err != nil {
+			cs.logger.Error("could not switch the active bluetooth connection")
+		}
 	}
 	return nil
 }
@@ -224,8 +236,8 @@ func (cs *ControlSystem) CheckWatering() {
 			// Trigger a watering event for that particular remote unit, then set the 20 minute timer
 			// callback, that is cancelled by an endpoint at /-/cancel?id=x
 			if cs.systemConfig.Mode == "automatic" {
-				// Spawn the timer, with the deadline
-				cs.systemTiming.NextWateringTime[int(cs.systemConfig.RemoteUnitConfigs[i].UnitNumber)] = time.Now().Add(20 * time.Minute)
+				// Set the watering to go off in 20 minutes
+				cs.systemTiming.NextWateringTime[cs.systemConfig.RemoteUnitConfigs[i].UnitNumber] = time.Now().Add(20 * time.Minute)
 			} else if cs.systemConfig.Mode == "manual" {
 				// Just suggest that we water, send shit to Grafana
 				// Work out how I am going to send off the warnings
@@ -237,4 +249,152 @@ func (cs *ControlSystem) CheckWatering() {
 // Check if there is any environmental issues, temperature, humidity mainly
 func (cs *ControlSystem) CheckForEnvironmentalIssues() {
 
+}
+
+// Handle watering a particular zone
+func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
+	// Write to serial that we need to water_on=x
+	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_on=%d\r\n", unitNumber))
+	if err != nil {
+		return err
+	}
+	// Then delete it from the map as we don't need to store it anymore
+	delete(cs.systemTiming.NextWateringTime, unitNumber)
+	// Then set a timer to water for some amount of time, maybe 20 minutes
+	cs.systemTiming.WateringUntilTime[unitNumber] = time.Now().Add(20 * time.Minute)
+	return nil
+}
+
+func (cs *ControlSystem) HandleWateringOffEvent(unitNumber uint) error {
+	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_off=%d\r\n", unitNumber))
+	if err != nil {
+		return err
+	}
+	// Now delete it from the watering map
+	delete(cs.systemTiming.WateringUntilTime, unitNumber)
+	return nil
+}
+
+func (cs *ControlSystem) ChangeActiveConnection(unitNumber uint) error {
+	/*
+		$$$
+		K,1
+		Cx
+	*/
+
+	// Enter command mode
+	err := cs.serialHandler.WriteToDevice("$$$\r\n")
+	if err != nil {
+		return err
+	}
+
+	// Disconnect from the current active connection
+	err = cs.serialHandler.WriteToDevice("K,1\r\n")
+	if err != nil {
+		return err
+	}
+
+	// Connect to the next device
+	err = cs.serialHandler.WriteToDevice(fmt.Sprintf("C%d\r\n", unitNumber))
+	if err != nil {
+		return err
+	}
+
+	// Otherwise we have probably succeeded, it spits out some verification stuff
+	return nil
+}
+
+type warnings struct {
+	sensorWarnings []warning
+}
+
+type warning struct {
+	Name  string
+	Value float64
+	Msg   string
+}
+
+func (cs *ControlSystem) GetNewWarnings() warnings {
+	/*
+		In this function we are going to check for any warning, especially
+		relating to the sensor readings (temperature and humidity), and the
+		data from the weather (mainly temperature as well), see what I want
+		to use
+	*/
+	ws := make([]warning, 0)
+
+	// Check temperatures, threshold is above 35 degrees, below 12 degrees
+	ws = append(ws, cs.generateTemperatureSensorWarnings()...)
+
+	// Check humidities, threshold is above 90%, below 20%
+	ws = append(ws, cs.generateHumiditySensorWarnings()...)
+
+	// Check weather, if the temperatures and humidities are the same, lots of rain (>100mm),
+	// or lots of cloud cover
+	return warnings{
+		sensorWarnings: ws,
+	}
+}
+
+func (cs *ControlSystem) generateTemperatureSensorWarnings() []warning {
+	ws := make([]warning, 0)
+	for i, v := range cs.currentSensorAverages {
+		if v.Temperature > 35 {
+			ws = append(ws, warning{
+				Name:  cs.systemConfig.RemoteUnitConfigs[i].UnitName,
+				Value: v.Temperature,
+				Msg:   fmt.Sprintf("Temperture is high, Zone %d should be monitored", i),
+			})
+		} else if v.Temperature < 12 {
+			ws = append(ws, warning{
+				Name:  cs.systemConfig.RemoteUnitConfigs[i].UnitName,
+				Value: v.Temperature,
+				Msg:   fmt.Sprintf("Temperature is low, Zone %d should be monitored", i),
+			})
+		}
+
+	}
+	return ws
+}
+
+func (cs *ControlSystem) generateHumiditySensorWarnings() []warning {
+	ws := make([]warning, 0)
+	for i, v := range cs.currentSensorAverages {
+		if v.Humidity > 90 {
+			ws = append(ws, warning{
+				Name:  cs.systemConfig.RemoteUnitConfigs[i].UnitName,
+				Value: v.Humidity,
+				Msg:   fmt.Sprintf("Humidity is very high, Zone %d should be monitored", i),
+			})
+		} else if v.Humidity < 20 {
+			ws = append(ws, warning{
+				Name:  cs.systemConfig.RemoteUnitConfigs[i].UnitName,
+				Value: v.Humidity,
+				Msg:   fmt.Sprintf("Humidity is very low, Zone %d should be monitored", i),
+			})
+		}
+	}
+	return ws
+}
+
+func (cs *ControlSystem) generateWeatherWarnings() []warning {
+	// Check the cloud cover mainly,
+	ws := make([]warning, 0)
+	if cs.currentWeatherValues.Clouds.All > 90 {
+		ws = append(ws, warning{
+			Name:  "Cloud cover",
+			Value: cs.currentWeatherValues.Clouds.All,
+			Msg:   "It is very cloudy, plants may not receive optimal sunlight",
+		})
+	}
+
+	// Check the wind, 20m/s is nearly cyclonic
+	if cs.currentWeatherValues.Wind.Speed > 20 {
+		ws = append(ws, warning{
+			Name:  "High Wind Speed",
+			Value: cs.currentWeatherValues.Wind.Speed,
+			Msg:   "The current wind speed is very high, ensure plants are sheltered",
+		})
+	}
+	return ws
 }
