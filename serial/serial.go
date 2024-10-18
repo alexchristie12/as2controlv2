@@ -14,6 +14,7 @@ import (
 type SerialConnection struct {
 	conn           *tarmSerial.Port
 	receieveBuffer [512]byte
+	currentDevice  uint // The current zone that the bluetooth module is connected to
 }
 
 type SensorReading struct {
@@ -40,6 +41,14 @@ func SerialConnectionInit(conf config.SerialConfig) (SerialConnection, error) {
 // Poll a device for its sensor information, output will in as key=value,... pairs
 // Will return an error if it fails, or timesout
 func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, error) {
+	// First check that we are connected to the device, if not switch
+	if deviceNumber != sc.currentDevice {
+		// Switch to the new device
+		err := sc.SwitchDevice(deviceNumber)
+		if err != nil {
+			return nil, err
+		}
+	}
 	// First write to the serial connection
 	pollStr := fmt.Sprintf("poll=%d\n", deviceNumber)
 	bytesWrote, err := sc.conn.Write([]byte(pollStr))
@@ -50,12 +59,17 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 	if err != nil {
 		return nil, err
 	}
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	// In this case we don't care about how many bytes were read, as this is handling in the parsing
 	// We need to read until we get a \n
 	readContents := make([]byte, 0)
+	// This needs a timeout, lets set it at 5 seconds
+	timeout := time.Now().Add(5 * time.Second)
 	for {
+		if time.Now().After(timeout) {
+			return nil, errors.New("timed out of receive loop")
+		}
 		n, err := sc.conn.Read(sc.receieveBuffer[:])
 		if err != nil {
 			return nil, err
@@ -96,4 +110,51 @@ func (sc *SerialConnection) WriteToDevice(msg string) error {
 		return err
 	}
 	return nil
+}
+
+func (sc *SerialConnection) SwitchDevice(newDevice uint) error {
+	if newDevice == sc.currentDevice {
+		return nil // We are already on the correct device
+	}
+	if err := sc.WriteToDevice("$$$\r\n"); err != nil {
+		return err
+	}
+
+	if err := sc.WriteToDevice("k,1\r\n"); err != nil {
+		return err
+	}
+
+	if err := sc.WriteToDevice(fmt.Sprintf("C%d\r\n", newDevice)); err != nil {
+		return err
+	}
+	// Need to check if we get the stuff
+	resp, err := sc.PollDeviceForDuration(1 * time.Second)
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(resp, "STREAM_OPEN") {
+		return errors.New("could not establish a new connection")
+	}
+	sc.currentDevice = newDevice
+	return nil
+}
+
+// Polls a device for a given amount of time, returns whatever its gets after that interval
+func (sc *SerialConnection) PollDeviceForDuration(timeout time.Duration) (string, error) {
+	readContents := make([]byte, 0)
+	// This needs a timeout, lets set it at 5 seconds
+	timeoutTime := time.Now().Add(timeout)
+	for {
+		if time.Now().After(timeoutTime) {
+			break
+		}
+		n, err := sc.conn.Read(sc.receieveBuffer[:])
+		if err != nil {
+			return "", err
+		}
+		readContents = append(readContents, sc.receieveBuffer[:n]...)
+	}
+	// Otherwise parse out everything. It is all in keyvalue pairs
+	byteStr := string(readContents)
+	return byteStr, nil
 }
