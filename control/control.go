@@ -281,6 +281,7 @@ func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
 }
 
 func (cs *ControlSystem) HandleWateringOffEvent(unitNumber uint) error {
+	// Need to make sure that we are on the correct device also
 	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_off=%d\r\n", unitNumber))
 	if err != nil {
 		return err
