@@ -127,7 +127,8 @@ func MakeTestingConfig() Config {
 			URL:          "http://localhost:8086",
 			Organisation: "Water_Monitoring",
 			Bucket:       "testing",
-			Token:        "1vCqkEI_vBPdjuoOBrFNI5JA2yIV3C8DnD2C3KyWpgq3XWkdAXM7cHbo2fAxh5jZt2ppFhD2Q1PRoO99bBuArw==",
+			// Token:        "1vCqkEI_vBPdjuoOBrFNI5JA2yIV3C8DnD2C3KyWpgq3XWkdAXM7cHbo2fAxh5jZt2ppFhD2Q1PRoO99bBuArw==",
+			Token: "xw90rybGcwte4JMCM608fCwUMPtnHaVt6kpLMAgml9osFOR7BAdUi8XzGrxQTD3yT_MSq11OL8gXG2fav3pHkQ==",
 		},
 		WeatherAPIConfig: OpenWeatherMapConfig{
 			URL:       "http://api.openweathermap.org",
