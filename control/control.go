@@ -414,3 +414,64 @@ func (cs *ControlSystem) generateWeatherWarnings() []warning {
 	}
 	return ws
 }
+
+// This is the main event loop for the system, where it checks the timings for everything,
+// triggers the appropriate event
+func (cs *ControlSystem) CheckTimings() error {
+	for {
+		// Check fetch times
+		if err := cs.CheckFetchTimes(); err != nil {
+			cs.logger.Error(fmt.Sprintf("could not fetch remote data: %s", err.Error()))
+		}
+
+		// Check weather times
+		if err := cs.CheckWeatherFetchTimes(); err != nil {
+			cs.logger.Error(fmt.Sprintf("could not fetch weather data: %s", err.Error()))
+		}
+
+		// Check rain times
+		if err := cs.CheckRainFetchTimes(); err != nil {
+			cs.logger.Error(fmt.Sprintf("could not fetch rain data: %s", err.Error()))
+		}
+
+		// Check watering start times
+
+		// Check watering stop times
+
+		// Other times that I can't think of
+	}
+}
+
+func (cs *ControlSystem) CheckFetchTimes() error {
+	if time.Now().After(cs.systemTiming.NextRemoteUnitFetchTime) {
+		// Set the next time
+		cs.systemTiming.NextRemoteUnitFetchTime = time.Now().Add(time.Duration(cs.systemConfig.RemoteIntervalSeconds) * time.Second)
+		// Fetch the new remote units
+		err := cs.FetchRemoteUnitReadings()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (cs *ControlSystem) CheckWeatherFetchTimes() error {
+	if time.Now().After(cs.systemTiming.NextWeatherReportFetchTime) {
+		// Set the next time
+		cs.systemTiming.NextWeatherReportFetchTime = time.Now().Add(time.Duration(cs.systemConfig.WeatherIntervalSeconds) * time.Second)
+		if err := cs.FetchWeatherData(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (cs *ControlSystem) CheckRainFetchTimes() error {
+	if time.Now().After(cs.systemTiming.NextRainReportFetchTime) {
+		cs.systemTiming.NextRainReportFetchTime = time.Now().Add(24 * time.Hour)
+		if err := cs.FetchRainData(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
