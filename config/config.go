@@ -124,7 +124,7 @@ func MakeTestingConfig() Config {
 			TimeoutSeconds: 5,
 		},
 		DatabaseConfig: InfluxDBConfig{
-			URL:          "http://localhost:8086",
+			URL:          "http://192.168.0.73:8086",
 			Organisation: "Water_Monitoring",
 			Bucket:       "testing",
 			// Token:        "1vCqkEI_vBPdjuoOBrFNI5JA2yIV3C8DnD2C3KyWpgq3XWkdAXM7cHbo2fAxh5jZt2ppFhD2Q1PRoO99bBuArw==",

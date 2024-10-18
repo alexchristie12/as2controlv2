@@ -42,11 +42,15 @@ func SerialConnectionInit(conf config.SerialConfig) (SerialConnection, error) {
 func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, error) {
 	// First write to the serial connection
 	pollStr := fmt.Sprintf("poll=%d\n", deviceNumber)
-	bytesWrote, err := sc.conn.Write([]byte(fmt.Sprintf(pollStr)))
+	bytesWrote, err := sc.conn.Write([]byte(pollStr))
 	if bytesWrote != len(pollStr) {
 		// This means that we failed to write the serial connection
 		return nil, err
 	}
+	if err != nil {
+		return nil, err
+	}
+	time.Sleep(500 * time.Millisecond)
 
 	// In this case we don't care about how many bytes were read, as this is handling in the parsing
 	// We need to read until we get a \n
@@ -64,6 +68,7 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 	// Otherwise parse out everything. It is all in keyvalue pairs
 	byteStr := string(readContents)
 	fmt.Println("Read contents")
+	fmt.Println(byteStr)
 	// Split on commas
 	sensorParts := strings.Split(strings.Trim(byteStr, "\r\n\t "), ",")
 	sensorReadings := make([]SensorReading, len(sensorParts))

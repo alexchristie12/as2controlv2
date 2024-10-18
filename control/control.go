@@ -153,10 +153,10 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 	}
 
 	// Check that the last one is flow rate
-	lastReading := readings[len(readings)-1]
+	lastReading := readings[len(readings)-2]
 
-	if lastReading.Name != "flow_rate" {
-		cs.logger.Warn("flow rate is not last value in poll, please verify data integrity")
+	if !strings.Contains(lastReading.Name, "flow_rate") {
+		cs.logger.Warn("flow rate is not second last value in poll, please verify data integrity")
 		currentValues.FlowRate = lastReading.Value
 	}
 
