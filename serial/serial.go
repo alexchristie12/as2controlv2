@@ -67,8 +67,8 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 	}
 	// Otherwise parse out everything. It is all in keyvalue pairs
 	byteStr := string(readContents)
-	fmt.Println("Read contents")
-	fmt.Println(byteStr)
+	// fmt.Println("Read contents")
+	// fmt.Println(byteStr)
 	// Split on commas
 	sensorParts := strings.Split(strings.Trim(byteStr, "\r\n\t "), ",")
 	sensorReadings := make([]SensorReading, len(sensorParts))
