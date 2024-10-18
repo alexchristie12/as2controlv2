@@ -21,16 +21,9 @@ type ControlSystem struct {
 	serialHandler         serial.SerialConnection      // Connection to the serial port (Bluetooth module)
 	currentWeatherValues  weather.CurrentWeatherResult // The current weather prediction
 	yesterdaysRainValue   weather.RainResult           // The rain from the previous day
-	currentSensorAverages []CurrentLocalValues         // The current average from all the sensor readings
+	currentSensorAverages []db.CurrentLocalValues      // The current average from all the sensor readings
 	wateringStats         []WateringStats              // Store information on whether we need to water a particular zone
 	systemTiming          Timings                      // The time coordination for the whole system
-}
-
-type CurrentLocalValues struct {
-	Temperature  float64
-	Humidity     float64
-	SoilMoisture float64
-	FlowRate     float64
 }
 
 type CurrentPrediction struct {
@@ -63,7 +56,7 @@ func ControlSystemInit(logger *slog.Logger, config config.Config, dbHandler db.D
 		serialHandler:         serialHandler,
 		currentWeatherValues:  weather.CurrentWeatherResult{},
 		yesterdaysRainValue:   weather.RainResult{},
-		currentSensorAverages: make([]CurrentLocalValues, len(config.RemoteUnitConfigs)),
+		currentSensorAverages: make([]db.CurrentLocalValues, len(config.RemoteUnitConfigs)),
 		wateringStats:         makeWateringStats(config.RemoteUnitConfigs),
 		systemTiming:          makeTimings(),
 	}
@@ -86,19 +79,19 @@ func makeWateringStats(configs []config.RemoteUnitConfig) []WateringStats {
 	return wateringStats
 }
 
-func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, currentValues *CurrentLocalValues) error {
+func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, currentValues *db.CurrentLocalValues) error {
 	readings, err := cs.serialHandler.PollDevice(rmu.UnitNumber)
 	cs.logger.Debug(fmt.Sprint(readings))
 	if err != nil {
 		cs.logger.Error(fmt.Sprintf("could not get readings from device zone id: %d", rmu.UnitNumber))
 		return err
 	}
-	// Send off the readings to influxDB
-	err = cs.dbHandler.WriteSensorReadings(readings, rmu, cs.systemConfig.Name)
-	if err != nil {
-		cs.logger.Error(fmt.Sprintf("could not write readings for device zone id %d to influxDB: %e", rmu.UnitNumber, err))
-		return err
-	}
+	// Send off the readings to influxDB, this is wrong, should do just measurement (temperature, humidity, soil_moisture, not with unit name)
+	// err = cs.dbHandler.WriteSensorReadings(readings, rmu, cs.systemConfig.Name)
+	// if err != nil {
+	// 	cs.logger.Error(fmt.Sprintf("could not write readings for device zone id %d to influxDB: %e", rmu.UnitNumber, err))
+	// 	return err
+	// }
 	// Now look for values, pray that we have the right values, first value must be the zone id, last must be the flow rate
 	// These act as integrity checks
 
@@ -119,6 +112,8 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 	humidityCount := 0
 	soilMositureSum := 0.0
 	soilMoistureCount := 0
+	flowRateSum := 0.0
+	flowRateCount := 0
 
 	for _, r := range readings {
 		if strings.Contains(strings.ToLower(r.Name), "temperature") {
@@ -150,6 +145,16 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 			soilMositureSum += r.Value
 			continue
 		}
+
+		if strings.Contains(strings.ToLower(r.Name), "flow_rate") {
+			if r.Value > 9000 {
+				// It's over 9000!
+				continue
+			}
+			flowRateCount++
+			flowRateSum += r.Value
+			continue
+		}
 	}
 
 	// Check that the last one is flow rate
@@ -163,8 +168,18 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 	currentValues.Temperature = temperaturesSum / float64(temperatureCount)
 	currentValues.Humidity = humiditySum / float64(humidityCount)
 	currentValues.SoilMoisture = soilMositureSum / float64(soilMoistureCount)
+	// Write these to InfluxDB
+	// Make the tags
+	tags := db.Tags{
+		SystemName:     cs.systemConfig.Name,
+		RemoteUnitName: rmu.UnitName,
+	}
+	err = cs.dbHandler.WriteUnitMetrics(rmu.UnitName, *currentValues, tags)
+	if err != nil {
+		return err
+	}
 
-	// TODO: Might want better error handling here
+	// TODO: Might want better error handling here, this function is really lloooonnnnngggg.
 	cs.logger.Info(fmt.Sprintf("fetched data from zone %d", rmu.UnitNumber))
 	return nil
 }

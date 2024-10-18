@@ -22,6 +22,13 @@ type Tags struct {
 	RemoteUnitName string
 }
 
+type CurrentLocalValues struct {
+	Temperature  float64
+	Humidity     float64
+	SoilMoisture float64
+	FlowRate     float64
+}
+
 // Establish a connection to InfluxDB
 func DBInit(conf config.InfluxDBConfig) (DBConnection, error) {
 	client := influxdb2.NewClient(conf.URL, conf.Token)
@@ -86,10 +93,29 @@ func (db *DBConnection) WriteSensorReadings(readings []serial.SensorReading, con
 		RemoteUnitName: conf.UnitName,
 	}
 	for _, r := range readings {
+		// Should do this after it is averaged out
 		err := db.WriteSensorMetric(r.Name, float64(r.Value), tags)
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (db *DBConnection) WriteUnitMetrics(measurementName string, localValues CurrentLocalValues, tags Tags) error {
+	tagsMap := map[string]string{
+		"system_name":      tags.SystemName,
+		"remote_unit_name": tags.RemoteUnitName,
+	}
+	fieldsMap := map[string]interface{}{
+		"temperature":   localValues.Temperature,
+		"humidity":      localValues.Humidity,
+		"soil_moisture": localValues.SoilMoisture,
+		"flow_rate":     localValues.FlowRate,
+	}
+	point := write.NewPoint(measurementName, tagsMap, fieldsMap, time.Now())
+	if err := db.writeAPI.WritePoint(context.Background(), point); err != nil {
+		return err
 	}
 	return nil
 }
