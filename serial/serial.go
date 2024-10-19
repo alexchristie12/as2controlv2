@@ -14,7 +14,7 @@ import (
 type SerialConnection struct {
 	conn           *tarmSerial.Port
 	receieveBuffer [512]byte
-	currentDevice  uint // The current zone that the bluetooth module is connected to
+	CurrentDevice  uint // The current zone that the bluetooth module is connected to
 }
 
 type SensorReading struct {
@@ -42,7 +42,7 @@ func SerialConnectionInit(conf config.SerialConfig) (SerialConnection, error) {
 // Will return an error if it fails, or timesout
 func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, error) {
 	// First check that we are connected to the device, if not switch
-	if deviceNumber != sc.currentDevice {
+	if deviceNumber != sc.CurrentDevice {
 		// Switch to the new device
 		err := sc.SwitchDevice(deviceNumber)
 		if err != nil {
@@ -113,7 +113,7 @@ func (sc *SerialConnection) WriteToDevice(msg string) error {
 }
 
 func (sc *SerialConnection) SwitchDevice(newDevice uint) error {
-	if newDevice == sc.currentDevice {
+	if newDevice == sc.CurrentDevice {
 		return nil // We are already on the correct device
 	}
 	if err := sc.WriteToDevice("$$$\r\n"); err != nil {
@@ -135,7 +135,7 @@ func (sc *SerialConnection) SwitchDevice(newDevice uint) error {
 	if !strings.Contains(resp, "STREAM_OPEN") {
 		return errors.New("could not establish a new connection")
 	}
-	sc.currentDevice = newDevice
+	sc.CurrentDevice = newDevice
 	return nil
 }
 
