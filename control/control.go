@@ -187,19 +187,16 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 func (cs *ControlSystem) FetchRemoteUnitReadings() error {
 	// For each remote unit, grab all the values
 	for i, rmu := range cs.systemConfig.RemoteUnitConfigs {
+		// If check that we are on the right connection
+		if rmu.UnitNumber != cs.serialHandler.CurrentDevice {
+			// Switch to the device we want data from
+			if err := cs.serialHandler.SwitchDevice(rmu.UnitNumber); err != nil {
+				return err
+			}
+		}
 		err := cs.FetchRemoteUnitReading(rmu, &cs.currentSensorAverages[i])
 		if err != nil {
 			return err
-		}
-		// Then change the connection
-		if len(cs.systemConfig.RemoteUnitConfigs) == 1 {
-			// Just move on
-			break
-		}
-		// Otherwise switch to the next unit
-		err = cs.ChangeActiveConnection(rmu.UnitNumber)
-		if err != nil {
-			cs.logger.Error("could not switch the active bluetooth connection")
 		}
 	}
 	return nil
@@ -325,9 +322,9 @@ type warnings struct {
 }
 
 type warning struct {
-	Name  string
-	Value float64
-	Msg   string
+	Name  string  `json:"name"`
+	Value float64 `json:"value"`
+	Msg   string  `json:"message"`
 }
 
 func (cs *ControlSystem) GetNewWarnings() warnings {
@@ -435,13 +432,25 @@ func (cs *ControlSystem) CheckTimings() error {
 		}
 
 		// Check watering start times
+		if err := cs.CheckWateringOnTimes(); err != nil {
+			cs.logger.Error(fmt.Sprintf("could not toggle watering for remote unit: %s", err.Error()))
+		}
 
 		// Check watering stop times
+		if err := cs.CheckWateringOffTimes(); err != nil {
+			cs.logger.Error(fmt.Sprintf("could not toggle off watering from remote unit: %s", err.Error()))
+		}
+
+		// Check that we need to water soon
+		cs.CheckWatering()
+
+		// Check for warnings...
 
 		// Other times that I can't think of
 	}
 }
 
+// Check the fetch timing for the system
 func (cs *ControlSystem) CheckFetchTimes() error {
 	if time.Now().After(cs.systemTiming.NextRemoteUnitFetchTime) {
 		// Set the next time
@@ -455,6 +464,7 @@ func (cs *ControlSystem) CheckFetchTimes() error {
 	return nil
 }
 
+// Check the weather fetching times for the system
 func (cs *ControlSystem) CheckWeatherFetchTimes() error {
 	if time.Now().After(cs.systemTiming.NextWeatherReportFetchTime) {
 		// Set the next time
@@ -466,11 +476,46 @@ func (cs *ControlSystem) CheckWeatherFetchTimes() error {
 	return nil
 }
 
+// Check the rain fetching times for the system
 func (cs *ControlSystem) CheckRainFetchTimes() error {
 	if time.Now().After(cs.systemTiming.NextRainReportFetchTime) {
 		cs.systemTiming.NextRainReportFetchTime = time.Now().Add(24 * time.Hour)
 		if err := cs.FetchRainData(); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// Check if we need to water for each system
+func (cs *ControlSystem) CheckWateringOnTimes() error {
+	if len(cs.systemTiming.NextWateringTime) == 0 {
+		return nil
+	}
+	// Now check the timing
+	for devID, wateringTime := range cs.systemTiming.NextWateringTime {
+		if time.Now().After(wateringTime) {
+			// Trigger the watering
+			if err := cs.HandleWateringOnEvent(devID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Check if we need to turn the watering off for a remote unit
+func (cs *ControlSystem) CheckWateringOffTimes() error {
+	if len(cs.systemTiming.WateringUntilTime) == 0 {
+		return nil
+	}
+	// Now check the timing
+	for devID, wateringOffTime := range cs.systemTiming.WateringUntilTime {
+		if time.Now().After(wateringOffTime) {
+			// Trigger the watering off event
+			if err := cs.HandleWateringOffEvent(devID); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
