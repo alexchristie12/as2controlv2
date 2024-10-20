@@ -49,7 +49,11 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 			return nil, err
 		}
 	}
-	// First write to the serial connection
+	// First write to the serial connection, to clear the buffer
+	_, err := sc.conn.Write([]byte(" \n"))
+	if err != nil {
+		return nil, err
+	}
 	pollStr := fmt.Sprintf("poll=%d\n", deviceNumber)
 	bytesWrote, err := sc.conn.Write([]byte(pollStr))
 	if bytesWrote != len(pollStr) {
