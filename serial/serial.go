@@ -4,6 +4,7 @@ import (
 	"as2controlv2/config"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -38,30 +39,20 @@ func SerialConnectionInit(conf config.SerialConfig) (SerialConnection, error) {
 	return serialConn, nil
 }
 
-// Poll a device for its sensor information, output will in as key=value,... pairs
-// Will return an error if it fails, or timesout
-func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, error) {
-	// First check that we are connected to the device, if not switch
-	if deviceNumber != sc.CurrentDevice {
-		// Switch to the new device
-		err := sc.SwitchDevice(deviceNumber)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// First write to the serial connection, to clear the buffer
+func (sc *SerialConnection) sendPollCmd(deviceNumber uint) (string, error) {
+	// // First write to the serial connection, to clear the buffer
 	_, err := sc.conn.Write([]byte(" \n"))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	pollStr := fmt.Sprintf("poll=%d\n", deviceNumber)
 	bytesWrote, err := sc.conn.Write([]byte(pollStr))
 	if bytesWrote != len(pollStr) {
 		// This means that we failed to write the serial connection
-		return nil, err
+		return "", err
 	}
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	time.Sleep(100 * time.Millisecond)
 
@@ -72,11 +63,11 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 	timeout := time.Now().Add(5 * time.Second)
 	for {
 		if time.Now().After(timeout) {
-			return nil, errors.New("timed out of receive loop")
+			return "", errors.New("timed out of receive loop")
 		}
 		n, err := sc.conn.Read(sc.receieveBuffer[:])
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		readContents = append(readContents, sc.receieveBuffer[:n]...)
 		if strings.Contains(string(sc.receieveBuffer[:n]), "\n") {
@@ -85,14 +76,46 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 	}
 	// Otherwise parse out everything. It is all in keyvalue pairs
 	byteStr := string(readContents)
-	// fmt.Println("Read contents")
-	// fmt.Println(byteStr)
+	return byteStr, nil
+}
+
+// Poll a device for its sensor information, output will in as key=value,... pairs
+// Will return an error if it fails, or timesout
+func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, error) {
+	var byteStr string
+	byteStr, err := sc.sendPollCmd(deviceNumber)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("Read contents")
+	fmt.Println(byteStr)
+	// Retry 5 times
+	for i := 0; i < 5; i++ {
+		if strings.Contains(byteStr, "CMD") {
+			// We are still in command mode, try again
+			log.Println("still in command mode, retrying")
+			sc.WriteToDevice("---\n\r")
+			if err := sc.SwitchDevice(deviceNumber); err != nil {
+				return nil, err
+			}
+			// And now retry
+			byteStr, err = sc.sendPollCmd(deviceNumber)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			break
+		}
+	}
 	// Split on commas
 	sensorParts := strings.Split(strings.Trim(byteStr, "\r\n\t "), ",")
 	sensorReadings := make([]SensorReading, len(sensorParts))
 	// Now separate out on the '='
 	for i, sp := range sensorParts {
 		readingParts := strings.Split(sp, "=")
+		if len(readingParts) < 2 {
+			continue
+		}
 		// First part is name, second is reading, so parse the reading
 		readingParts[0] = strings.Trim(readingParts[0], "\r\n\t ")
 		readingParts[1] = strings.Trim(readingParts[1], "\r\n\t ")
@@ -120,26 +143,35 @@ func (sc *SerialConnection) SwitchDevice(newDevice uint) error {
 	if newDevice == sc.CurrentDevice {
 		return nil // We are already on the correct device
 	}
-	if err := sc.WriteToDevice("$$$\r\n"); err != nil {
+	if err := sc.WriteToDevice("$$$"); err != nil {
 		return err
 	}
+	time.Sleep(500 * time.Millisecond)
 
-	if err := sc.WriteToDevice("k,1\r\n"); err != nil {
+	if err := sc.WriteToDevice("k,1\n\r"); err != nil {
 		return err
 	}
+	time.Sleep(500 * time.Millisecond)
 
-	if err := sc.WriteToDevice(fmt.Sprintf("C%d\r\n", newDevice)); err != nil {
+	if err := sc.WriteToDevice(fmt.Sprintf("c%d\n\r", newDevice)); err != nil {
 		return err
 	}
+	time.Sleep(2000 * time.Millisecond)
 	// Need to check if we get the stuff
-	resp, err := sc.PollDeviceForDuration(1 * time.Second)
-	if err != nil {
+	// resp, err := sc.PollDeviceForDuration(1 * time.Second)
+	// if err != nil {
+	// 	return fmt.Errorf("could not connect to device %d", newDevice)
+	// }
+	// if !strings.Contains(resp, "STREAM_OPEN") {
+	// 	return errors.New("could not establish a new connection")
+	// }
+	// Emit some random shit to prevent a misalignment
+	if err := sc.WriteToDevice(" \r\n"); err != nil {
 		return err
-	}
-	if !strings.Contains(resp, "STREAM_OPEN") {
-		return errors.New("could not establish a new connection")
 	}
 	sc.CurrentDevice = newDevice
+	log.Println("switched to device: ", sc.CurrentDevice)
+	sc.conn.Flush()
 	return nil
 }
 
