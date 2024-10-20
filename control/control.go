@@ -115,6 +115,7 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 	flowRateSum := 0.0
 	flowRateCount := 0
 
+	cs.logger.Info(fmt.Sprintf("got %d readings", len(readings)))
 	for _, r := range readings {
 		if strings.Contains(strings.ToLower(r.Name), "temperature") {
 			if r.Value > 9000 {
@@ -185,11 +186,13 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 }
 
 func (cs *ControlSystem) FetchRemoteUnitReadings() error {
+	cs.logger.Info(fmt.Sprintf("current unit is: %d", cs.serialHandler.CurrentDevice))
 	// For each remote unit, grab all the values
 	for i, rmu := range cs.systemConfig.RemoteUnitConfigs {
 		// If check that we are on the right connection
 		if rmu.UnitNumber != cs.serialHandler.CurrentDevice {
 			// Switch to the device we want data from
+			cs.logger.Info(fmt.Sprintf("attempting to switch from device %d to device %d", cs.serialHandler.CurrentDevice, rmu.UnitNumber))
 			if err := cs.serialHandler.SwitchDevice(rmu.UnitNumber); err != nil {
 				return err
 			}
@@ -199,6 +202,8 @@ func (cs *ControlSystem) FetchRemoteUnitReadings() error {
 			return err
 		}
 	}
+	// Now go back to the original device
+	cs.serialHandler.CurrentDevice = 0
 	return nil
 }
 
