@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"time"
@@ -110,11 +109,11 @@ func main() {
 	controller := control.ControlSystemInit(logger, conf, dbHandler, weatherHandler, serialHandler)
 	// Spawn the server on a different thread
 	// Define all the HTTP routes
-	r := gin.Default()
-	SetupRoutes(r, controller)
-	go func() { // This runs this function asyncronously, so we can sit in our main loop
-		log.Fatal(r.Run())
-	}()
+	// r := gin.Default()
+	// SetupRoutes(r, controller)
+	// go func() { // This runs this function asyncronously, so we can sit in our main loop
+	// 	log.Fatal(r.Run())
+	// }()
 
 	for {
 		err := controller.FetchRemoteUnitReadings()
