@@ -115,6 +115,7 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 	soilMoistureCount := 0
 	flowRateSum := 0.0
 	flowRateCount := 0
+	// Since there is only one water on, we can just look for the water_on
 
 	cs.logger.Info(fmt.Sprintf("got %d readings", len(readings)))
 	for _, r := range readings {
@@ -164,11 +165,11 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 	}
 
 	// Check that the last one is flow rate
-	lastReading := readings[len(readings)-2]
+	lastReading := readings[len(readings)-1]
 
-	if !strings.Contains(lastReading.Name, "flow_rate") {
-		cs.logger.Warn("flow rate is not second last value in poll, please verify data integrity")
-		currentValues.FlowRate = lastReading.Value
+	if !strings.Contains(lastReading.Name, "water_on") {
+		cs.logger.Warn("water on is not the last value in poll, please verify data integrity")
+		currentValues.WaterOn = lastReading.Value
 	}
 
 	currentValues.Temperature = temperaturesSum / float64(temperatureCount)
@@ -186,6 +187,23 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 	}
 
 	// TODO: Might want better error handling here, this function is really lloooonnnnngggg.
+
+	// Unfortunately, we need to add more to this function, because we will handle the watering task here
+	if cs.checkIfNeedsWateringOn(rmu.UnitNumber) {
+		if err = cs.HandleWateringOnEvent(rmu.UnitNumber); err != nil {
+			cs.logger.Info(fmt.Sprintf("failed to turn watering on for unit %d", rmu.UnitNumber))
+		} else {
+			cs.logger.Info(fmt.Sprintf("turned watering on for unit %d", rmu.UnitNumber))
+		}
+	}
+
+	if cs.checkIfNeedsWateringOff(rmu.UnitNumber) {
+		if err = cs.HandleWateringOffEvent(rmu.UnitNumber); err != nil {
+			cs.logger.Info(fmt.Sprintf("failed to turn watering off for unit %d", rmu.UnitNumber))
+		} else {
+			cs.logger.Info(fmt.Sprintf("turned watering off for unit %d", rmu.UnitNumber))
+		}
+	}
 	cs.logger.Info(fmt.Sprintf("fetched data from zone %d", rmu.UnitNumber))
 	return nil
 }
@@ -275,12 +293,8 @@ func (cs *ControlSystem) CheckForEnvironmentalIssues() {
 
 // Handle watering a particular zone
 func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
-	// Write to serial that we need to water_on=x
-	if unitNumber != cs.serialHandler.CurrentDevice {
-		if err := cs.serialHandler.SwitchDevice(unitNumber); err != nil {
-			return err
-		}
-	}
+	// We need to be in the right connection to do this right. So we do this when we
+	// get the sensor readings
 	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_on=%d\r\n", unitNumber))
 	if err != nil {
 		return err
@@ -292,13 +306,28 @@ func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
 	return nil
 }
 
-func (cs *ControlSystem) HandleWateringOffEvent(unitNumber uint) error {
-	// Need to make sure that we are on the correct device also
-	if unitNumber != cs.serialHandler.CurrentDevice {
-		if err := cs.serialHandler.SwitchDevice(unitNumber); err != nil {
-			return err
-		}
+func (cs *ControlSystem) checkIfNeedsWateringOn(unitNumber uint) bool {
+	// Check if it is to be watered now
+	if val, ok := cs.systemTiming.NextWateringTime[unitNumber]; !ok {
+		return false // It is not in the timings
+	} else if time.Now().After(val) {
+		return true // It is time to water it now
+	} else {
+		return false // It is not time yet
 	}
+}
+
+func (cs *ControlSystem) checkIfNeedsWateringOff(unitNumber uint) bool {
+	if val, ok := cs.systemTiming.WateringUntilTime[unitNumber]; !ok {
+		return false // We are not watering at the moment
+	} else if time.Now().After(val) {
+		return true // It is time to turn the watering off
+	} else {
+		return false // It is not yet time to turn the watering off
+	}
+}
+
+func (cs *ControlSystem) HandleWateringOffEvent(unitNumber uint) error {
 	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_off=%d\r\n", unitNumber))
 	if err != nil {
 		return err
