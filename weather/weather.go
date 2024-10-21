@@ -2,7 +2,6 @@ package weather
 
 import (
 	"as2controlv2/config"
-	"as2controlv2/db"
 	"encoding/json"
 	"errors"
 	"fmt"
