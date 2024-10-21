@@ -238,18 +238,20 @@ func (cs *ControlSystem) FetchWeatherData() error {
 		cs.logger.Error("could not fetch weather data")
 		return err
 	}
-	// Set the control system based on the weather results
-	// Come up with some recommendations if we have three mm or rain or
-	// more, we can delay our next watering session by a day, if we get
-	// 9mm or rain, we can delay it by two days
 
 	// Put it into the control base
 	cs.currentWeatherValues = weatherResult
 	cs.logger.Info("fetched weather data")
 	// Write to influxDB
+	if err := cs.dbHandler.WriteWeatherMetrics(weatherResult); err != nil {
+		return err
+	}
 	return nil
 }
 
+/*
+Because we have to pay for the API, we cannot use this anymore
+*/
 func (cs *ControlSystem) FetchRainData() error {
 	rainResult, err := cs.weatherHandler.GetYesterdaysRain()
 	if err != nil {
@@ -277,7 +279,7 @@ func (cs *ControlSystem) CheckWatering() {
 		if rmu.SoilMoisture < 25 {
 			if cs.systemConfig.Mode == "automatic" {
 				// Set the watering to go off in 20 minutes
-				cs.systemTiming.NextWateringTime[cs.systemConfig.RemoteUnitConfigs[i].UnitNumber] = time.Now().Add(20 * time.Minute)
+				cs.systemTiming.NextWateringTime[cs.systemConfig.RemoteUnitConfigs[i].UnitNumber] = time.Now().Add(1 * time.Minute)
 			} else if cs.systemConfig.Mode == "manual" {
 				// Just suggest that we water, send shit to Grafana
 				// Work out how I am going to send off the warnings
@@ -302,7 +304,7 @@ func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
 	// Then delete it from the map as we don't need to store it anymore
 	delete(cs.systemTiming.NextWateringTime, unitNumber)
 	// Then set a timer to water for some amount of time, maybe 20 minutes
-	cs.systemTiming.WateringUntilTime[unitNumber] = time.Now().Add(20 * time.Minute)
+	cs.systemTiming.WateringUntilTime[unitNumber] = time.Now().Add(2 * time.Minute)
 	return nil
 }
 
@@ -476,9 +478,9 @@ func (cs *ControlSystem) CheckTimings() error {
 		}
 
 		// // Check rain times
-		if err := cs.CheckRainFetchTimes(); err != nil {
-			cs.logger.Error(fmt.Sprintf("could not fetch rain data: %s", err.Error()))
-		}
+		// if err := cs.CheckRainFetchTimes(); err != nil {
+		// 	cs.logger.Error(fmt.Sprintf("could not fetch rain data: %s", err.Error()))
+		// }
 
 		// Check watering start times
 		if err := cs.CheckWateringOnTimes(); err != nil {
