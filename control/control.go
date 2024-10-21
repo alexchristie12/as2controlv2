@@ -250,8 +250,6 @@ func (cs *ControlSystem) CheckWatering() {
 	*/
 	for i, rmu := range cs.currentSensorAverages {
 		if rmu.SoilMoisture < 25 {
-			// Trigger a watering event for that particular remote unit, then set the 20 minute timer
-			// callback, that is cancelled by an endpoint at /-/cancel?id=x
 			if cs.systemConfig.Mode == "automatic" {
 				// Set the watering to go off in 20 minutes
 				cs.systemTiming.NextWateringTime[cs.systemConfig.RemoteUnitConfigs[i].UnitNumber] = time.Now().Add(20 * time.Minute)
