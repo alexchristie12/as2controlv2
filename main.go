@@ -125,10 +125,15 @@ func main() {
 	}()
 
 	for {
-		err := controller.FetchRemoteUnitReadings()
+		// err := controller.FetchRemoteUnitReadings()
+		// if err != nil {
+		// 	fmt.Println("Error fetching remote unit readings: ", err.Error())
+		// }
+		// time.Sleep(15 * time.Second)
+		err := controller.CheckTimings()
 		if err != nil {
-			fmt.Println("Error fetching remote unit readings: ", err.Error())
+			// This should never be reached
+			os.Exit(1)
 		}
-		time.Sleep(15 * time.Second)
 	}
 }
