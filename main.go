@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"log/slog"
 	"os"
 	"time"
@@ -63,6 +65,7 @@ func SetupRoutes(r *gin.Engine, cs *control.ControlSystem) {
 	r.GET("/api/warnings", cs.RouteGETWarnings)
 	r.POST("/api/delay", cs.RoutePOSTDelayWatering)
 	r.POST("/api/canel", cs.RoutePOSTCancelWatering)
+	r.POST("/api/water-now", cs.RoutePOSTWaterNow)
 }
 
 func main() {
@@ -109,11 +112,17 @@ func main() {
 	controller := control.ControlSystemInit(logger, conf, dbHandler, weatherHandler, serialHandler)
 	// Spawn the server on a different thread
 	// Define all the HTTP routes
-	// r := gin.Default()
-	// SetupRoutes(r, controller)
-	// go func() { // This runs this function asyncronously, so we can sit in our main loop
-	// 	log.Fatal(r.Run())
-	// }()
+	gin.DisableConsoleColor()
+	f, err := os.Create("gin.log")
+	if err != nil {
+		log.Println("Could not create log file for gin")
+	}
+	gin.DefaultWriter = io.MultiWriter(f)
+	r := gin.Default()
+	SetupRoutes(r, controller)
+	go func() { // This runs this function asyncronously, so we can sit in our main loop
+		log.Fatal(r.Run())
+	}()
 
 	for {
 		err := controller.FetchRemoteUnitReadings()
