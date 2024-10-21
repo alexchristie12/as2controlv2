@@ -280,6 +280,7 @@ func (cs *ControlSystem) CheckWatering() {
 			if cs.systemConfig.Mode == "automatic" {
 				// Set the watering to go off in 20 minutes
 				cs.systemTiming.NextWateringTime[cs.systemConfig.RemoteUnitConfigs[i].UnitNumber] = time.Now().Add(1 * time.Minute)
+				cs.logger.Info(fmt.Sprintf("scheduling unit number %d for watering in one minute", cs.systemConfig.RemoteUnitConfigs[i].UnitNumber))
 			} else if cs.systemConfig.Mode == "manual" {
 				// Just suggest that we water, send shit to Grafana
 				// Work out how I am going to send off the warnings
@@ -297,11 +298,12 @@ func (cs *ControlSystem) CheckForEnvironmentalIssues() {
 func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
 	// We need to be in the right connection to do this right. So we do this when we
 	// get the sensor readings
-	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_on=%d\r\n", unitNumber))
+	err := cs.serialHandler.WriteToDevice("water_on=1\r\n")
 	if err != nil {
 		return err
 	}
 	// Then delete it from the map as we don't need to store it anymore
+	cs.logger.Info(fmt.Sprintf("turning on watering for unit %d", unitNumber))
 	delete(cs.systemTiming.NextWateringTime, unitNumber)
 	// Then set a timer to water for some amount of time, maybe 20 minutes
 	cs.systemTiming.WateringUntilTime[unitNumber] = time.Now().Add(2 * time.Minute)
@@ -330,10 +332,11 @@ func (cs *ControlSystem) checkIfNeedsWateringOff(unitNumber uint) bool {
 }
 
 func (cs *ControlSystem) HandleWateringOffEvent(unitNumber uint) error {
-	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_off=%d\r\n", unitNumber))
+	err := cs.serialHandler.WriteToDevice("water_on=0\r\n")
 	if err != nil {
 		return err
 	}
+	cs.logger.Info(fmt.Sprintf("turning off watering for unit %d", unitNumber))
 	// Now delete it from the watering map
 	delete(cs.systemTiming.WateringUntilTime, unitNumber)
 	return nil
