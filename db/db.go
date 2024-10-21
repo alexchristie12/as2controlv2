@@ -27,6 +27,7 @@ type CurrentLocalValues struct {
 	Humidity     float64
 	SoilMoisture float64
 	FlowRate     float64
+	WaterOn      float64
 }
 
 // Establish a connection to InfluxDB
@@ -112,6 +113,7 @@ func (db *DBConnection) WriteUnitMetrics(measurementName string, localValues Cur
 		"humidity":      localValues.Humidity,
 		"soil_moisture": localValues.SoilMoisture,
 		"flow_rate":     localValues.FlowRate,
+		"water_on":      localValues.WaterOn,
 	}
 	point := write.NewPoint(measurementName, tagsMap, fieldsMap, time.Now())
 	if err := db.writeAPI.WritePoint(context.Background(), point); err != nil {

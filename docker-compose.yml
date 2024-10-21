@@ -1,13 +1,13 @@
 services:
   # Password is joe_mama
-  grafana:
-    image: grafana/grafana-enterprise
-    container_name: grafana
-    restart: unless-stopped
-    ports:
-     - '3000:3000'
-    volumes:
-     - 'grafana_storage:/var/lib/grafana'
+  # grafana:
+  #   image: grafana/grafana-enterprise
+  #   container_name: grafana
+  #   restart: unless-stopped
+  #   ports:
+  #    - '3000:3000'
+  #   volumes:
+  #    - 'grafana_storage:/var/lib/grafana'
   # Password is joe_mama
   # Operator API Key is: MVnRqFKdL4LKkKnKHED9JBiv4hxWZG3bkuUh3wpxuAcegFQJ7omU_0j1JKL1jEgLYlfPh4H4C5ddF0_K0pd1dg==
   # GrafanaControlSystem API Key is: Aqtb49IMvgL_dAWltUvadv1f51SoN0RMM_ozFUntmv2eRtRe0a-SMoHrJHKywRxeVv8azLyi7z97TgAuyfDynw==
