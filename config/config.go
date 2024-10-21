@@ -144,7 +144,7 @@ func MakeTestingConfig() Config {
 			},
 			{
 				UnitName:   "unit_2",
-				BLEAddress: "FF:FF:FF:FF:FF:FF",
+				BLEAddress: "",
 				UnitNumber: 2,
 			},
 			// {
@@ -157,11 +157,11 @@ func MakeTestingConfig() Config {
 			// 	BLEAddress: "FF:FF:FF:FF:FF:FF",
 			// 	UnitNumber: 4,
 			// },
-			// {
-			// 	UnitName:   "unit_5",
-			// 	BLEAddress: "FF:FF:FF:FF:FF:FF",
-			// 	UnitNumber: 5,
-			// },
+			{
+				UnitName:   "unit_5",
+				BLEAddress: "",
+				UnitNumber: 5,
+			},
 		},
 	}
 }
