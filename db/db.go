@@ -3,6 +3,7 @@ package db
 import (
 	"as2controlv2/config"
 	"as2controlv2/serial"
+	"as2controlv2/weather"
 	"context"
 	"errors"
 	"time"
@@ -116,6 +117,28 @@ func (db *DBConnection) WriteUnitMetrics(measurementName string, localValues Cur
 		"water_on":      localValues.WaterOn,
 	}
 	point := write.NewPoint(measurementName, tagsMap, fieldsMap, time.Now())
+	if err := db.writeAPI.WritePoint(context.Background(), point); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *DBConnection) WriteWeatherMetrics(wr weather.CurrentWeatherResult) error {
+	tags := map[string]string{
+		"location": wr.Name,
+	}
+
+	fields := map[string]interface{}{
+		"temperature":            wr.Main.TempKelvin - 272.15,
+		"temperature_feels_like": wr.Main.TempFeelsLikeKelvin - 272.15,
+		"temperature_max":        wr.Main.TempMaxKelvin - 272.15,
+		"temperature_min":        wr.Main.TempMinKelvin - 272.15,
+		"pressure":               wr.Main.PressurehPa,
+		"humidity":               wr.Main.HumidityPercent,
+		"cloud_coverage":         wr.Clouds.All,
+		"wind_speed_ms":          wr.Wind.Speed,
+	}
+	point := write.NewPoint("weather", tags, fields, time.Now())
 	if err := db.writeAPI.WritePoint(context.Background(), point); err != nil {
 		return err
 	}
