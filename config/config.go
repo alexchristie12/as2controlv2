@@ -116,6 +116,7 @@ func LoadConfig(bytes []byte) (Config, error) {
 func MakeTestingConfig() Config {
 	return Config{
 		Name:                   "example_system_config",
+		Mode:                   "automatic",
 		WeatherIntervalSeconds: 3600,
 		RemoteIntervalSeconds:  30,
 		SerialConfig: SerialConfig{
