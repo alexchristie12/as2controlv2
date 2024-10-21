@@ -117,7 +117,7 @@ func MakeTestingConfig() Config {
 	return Config{
 		Name:                   "example_system_config",
 		WeatherIntervalSeconds: 3600,
-		RemoteIntervalSeconds:  60,
+		RemoteIntervalSeconds:  30,
 		SerialConfig: SerialConfig{
 			Port:           "/dev/ttyS0",
 			BaudRate:       115200,
