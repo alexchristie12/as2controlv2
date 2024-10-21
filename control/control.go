@@ -486,14 +486,14 @@ func (cs *ControlSystem) CheckTimings() error {
 		// }
 
 		// Check watering start times
-		if err := cs.CheckWateringOnTimes(); err != nil {
-			cs.logger.Error(fmt.Sprintf("could not toggle watering for remote unit: %s", err.Error()))
-		}
+		// if err := cs.CheckWateringOnTimes(); err != nil {
+		// 	cs.logger.Error(fmt.Sprintf("could not toggle watering for remote unit: %s", err.Error()))
+		// }
 
 		// Check watering stop times
-		if err := cs.CheckWateringOffTimes(); err != nil {
-			cs.logger.Error(fmt.Sprintf("could not toggle off watering from remote unit: %s", err.Error()))
-		}
+		// if err := cs.CheckWateringOffTimes(); err != nil {
+		// 	cs.logger.Error(fmt.Sprintf("could not toggle off watering from remote unit: %s", err.Error()))
+		// }
 
 		// Check that we need to water soon
 		cs.CheckWatering()
