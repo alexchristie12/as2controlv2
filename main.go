@@ -63,7 +63,7 @@ func HandleExampleConfigArg() {
 func SetupRoutes(r *gin.Engine, cs *control.ControlSystem) {
 	r.GET("/api/warnings", cs.RouteGETWarnings)
 	r.POST("/api/delay", cs.RoutePOSTDelayWatering)
-	r.POST("/api/canel", cs.RoutePOSTCancelWatering)
+	r.POST("/api/cancel", cs.RoutePOSTCancelWatering)
 	r.POST("/api/water-now", cs.RoutePOSTWaterNow)
 }
 
