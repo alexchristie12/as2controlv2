@@ -2,6 +2,7 @@ package weather
 
 import (
 	"as2controlv2/config"
+	"as2controlv2/db"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,19 +22,19 @@ type WeatherAPI struct {
 }
 
 type CurrentWeatherResult struct {
-	Coord      Coord   `json:"coord"`
-	Weather    Weather `json:"weather"`
-	Base       string  `json:"base"`
-	Main       Main    `json:"main"`
-	Visibility uint    `json:"visibility"`
-	Wind       Wind    `json:"wind"`
-	Clouds     Clouds  `json:"clouds"`
-	DT         uint    `json:"dt"`
-	Sys        Sys     `json:"sys"`
-	Timezone   uint    `json:"timezone"`
-	ID         uint    `json:"id"`
-	Name       string  `json:"name"`
-	Cod        int     `json:"cod"`
+	Coord      Coord     `json:"coord"`
+	Weather    []Weather `json:"weather"`
+	Base       string    `json:"base"`
+	Main       Main      `json:"main"`
+	Visibility uint      `json:"visibility"`
+	Wind       Wind      `json:"wind"`
+	Clouds     Clouds    `json:"clouds"`
+	DT         uint      `json:"dt"`
+	Sys        Sys       `json:"sys"`
+	Timezone   uint      `json:"timezone"`
+	ID         uint      `json:"id"`
+	Name       string    `json:"name"`
+	Cod        int       `json:"cod"`
 }
 
 type Weather struct {
@@ -92,7 +93,7 @@ func WeatherInit(conf config.OpenWeatherMapConfig) WeatherAPI {
 }
 
 func (w *WeatherAPI) GetCurrentWeather() (CurrentWeatherResult, error) {
-	fullUrl := fmt.Sprintf("%s/data/2.5/weather?lat=%f&long=%f&appid=%s", w.URL, w.Latitude, w.Longitude, w.Token)
+	fullUrl := fmt.Sprintf("%s/data/2.5/weather?lat=%f&lon=%f&appid=%s", w.URL, w.Latitude, w.Longitude, w.Token)
 	resp, err := http.Get(fullUrl)
 	if err != nil {
 		return CurrentWeatherResult{}, nil
@@ -113,10 +114,14 @@ func (w *WeatherAPI) GetCurrentWeather() (CurrentWeatherResult, error) {
 	if err != nil {
 		return CurrentWeatherResult{}, err
 	}
+	// Write these results into influxDB
 
 	return result, nil
 }
 
+/*
+Unfortunately, we are unable to use the rain API from openweathermap (It costs money!)
+*/
 func (w *WeatherAPI) GetYesterdaysRain() (RainResult, error) {
 	timeNow := time.Now().Unix()
 	timeYesterday := time.Now().Add(-24 * time.Hour).Unix()
