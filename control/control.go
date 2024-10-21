@@ -5,6 +5,7 @@ import (
 	"as2controlv2/db"
 	"as2controlv2/serial"
 	"as2controlv2/weather"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -117,6 +118,10 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 
 	cs.logger.Info(fmt.Sprintf("got %d readings", len(readings)))
 	for _, r := range readings {
+		if len(readings) != 14 {
+			cs.logger.Error("invalid number of entries")
+			return errors.New("invalid number of entries")
+		}
 		if strings.Contains(strings.ToLower(r.Name), "temperature") {
 			if r.Value > 9000 {
 				// Its over 9000!!!
@@ -199,7 +204,9 @@ func (cs *ControlSystem) FetchRemoteUnitReadings() error {
 		}
 		err := cs.FetchRemoteUnitReading(rmu, &cs.currentSensorAverages[i])
 		if err != nil {
-			return err
+			// Don't return, just move on
+			cs.logger.Error(fmt.Sprintf("could not fetch sensor data from unit %d: %s", rmu.UnitNumber, err.Error()))
+			continue
 		}
 	}
 	// Now go back to the original device
@@ -269,6 +276,11 @@ func (cs *ControlSystem) CheckForEnvironmentalIssues() {
 // Handle watering a particular zone
 func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
 	// Write to serial that we need to water_on=x
+	if unitNumber != cs.serialHandler.CurrentDevice {
+		if err := cs.serialHandler.SwitchDevice(unitNumber); err != nil {
+			return err
+		}
+	}
 	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_on=%d\r\n", unitNumber))
 	if err != nil {
 		return err
@@ -434,7 +446,7 @@ func (cs *ControlSystem) CheckTimings() error {
 			cs.logger.Error(fmt.Sprintf("could not fetch weather data: %s", err.Error()))
 		}
 
-		// Check rain times
+		// // Check rain times
 		if err := cs.CheckRainFetchTimes(); err != nil {
 			cs.logger.Error(fmt.Sprintf("could not fetch rain data: %s", err.Error()))
 		}
@@ -497,6 +509,12 @@ func (cs *ControlSystem) CheckRainFetchTimes() error {
 
 // Check if we need to water for each system
 func (cs *ControlSystem) CheckWateringOnTimes() error {
+	if cs.systemTiming.NextWateringTime == nil {
+		cs.systemTiming.NextWateringTime = make(map[uint]time.Time)
+	}
+	if cs.systemTiming.WateringUntilTime == nil {
+		cs.systemTiming.WateringUntilTime = make(map[uint]time.Time)
+	}
 	if len(cs.systemTiming.NextWateringTime) == 0 {
 		return nil
 	}

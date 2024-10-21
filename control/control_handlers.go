@@ -79,7 +79,7 @@ func (cs *ControlSystem) RoutePOSTCancelWatering(c *gin.Context) {
 
 // Schedule watering for now, route is /api/water-now?query=0
 func (cs *ControlSystem) RoutePOSTWaterNow(c *gin.Context) {
-	// In this one, set the watering time for 1 minute from now
+	// In this one, set the watering time for 0 minute from now
 	unitStr := c.Query("unit")
 	if unitStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -111,5 +111,4 @@ func (cs *ControlSystem) RoutePOSTWaterNow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"msg": fmt.Sprintf("scheduled watering for unit %d for now", unit),
 	})
-	return
 }

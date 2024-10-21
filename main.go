@@ -26,7 +26,7 @@ func CheckArgs(args []string) error {
 	}
 
 	if args[1] == "run" && len(args) != 3 {
-		return errors.New("Invalid use of 'run' command, please provide a config file")
+		return errors.New("invalid use of 'run' command, please provide a config file")
 	} else if len(args) == 3 {
 		// Check that the file exists
 		if _, err := os.Stat(args[2]); err != os.ErrExist {
@@ -73,7 +73,10 @@ func main() {
 	// to this program is the config file
 
 	// Parse all the flags
-	err := CheckArgs(os.Args)
+	if err := CheckArgs(os.Args); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	if os.Args[1] == "example" {
 		HandleExampleConfigArg()
@@ -87,6 +90,9 @@ func main() {
 	// Load the config file
 	// conf, err := LoadConfig(os.Args[2])
 	conf := config.MakeTestingConfig()
+	for _, v := range conf.RemoteUnitConfigs {
+		fmt.Println("Got unit number ", v.UnitNumber)
+	}
 
 	// as2controlv2 run <config-file>
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -102,7 +108,7 @@ func main() {
 	weatherHandler := weather.WeatherInit(conf.WeatherAPIConfig)
 
 	// Load the serial connection
-	serialHandler, err := serial.SerialConnectionInit(conf.SerialConfig)
+	serialHandler, err := serial.SerialConnectionInit(conf.SerialConfig, logger)
 	if err != nil {
 		fmt.Println("Error loading serial connection config: ", err.Error())
 	}
