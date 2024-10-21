@@ -93,6 +93,7 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 	for i := 0; i < 5; i++ {
 		if strings.Contains(byteStr, "CMD") {
 			// We are still in command mode, try again
+			sc.CurrentDevice = 0
 			log.Println("still in command mode, retrying")
 			sc.WriteToDevice("---\n\r")
 			if err := sc.SwitchDevice(deviceNumber); err != nil {
@@ -106,6 +107,10 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 		} else {
 			break
 		}
+	}
+	// This means it is still broken
+	if strings.Contains(byteStr, "CMD") {
+		return nil, errors.New("failed to change device")
 	}
 	// Split on commas
 	sensorParts := strings.Split(strings.Trim(byteStr, "\r\n\t "), ",")
@@ -157,15 +162,6 @@ func (sc *SerialConnection) SwitchDevice(newDevice uint) error {
 		return err
 	}
 	time.Sleep(2000 * time.Millisecond)
-	// Need to check if we get the stuff
-	// resp, err := sc.PollDeviceForDuration(1 * time.Second)
-	// if err != nil {
-	// 	return fmt.Errorf("could not connect to device %d", newDevice)
-	// }
-	// if !strings.Contains(resp, "STREAM_OPEN") {
-	// 	return errors.New("could not establish a new connection")
-	// }
-	// Emit some random shit to prevent a misalignment
 	if err := sc.WriteToDevice(" \r\n"); err != nil {
 		return err
 	}
