@@ -1,0 +1,19 @@
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /api/warnings             --> as2controlv2/control.(*ControlSystem).RouteGETWarnings-fm (3 handlers)
+[GIN-debug] POST   /api/delay                --> as2controlv2/control.(*ControlSystem).RoutePOSTDelayWatering-fm (3 handlers)
+[GIN-debug] POST   /api/cancel               --> as2controlv2/control.(*ControlSystem).RoutePOSTCancelWatering-fm (3 handlers)
+[GIN-debug] POST   /api/water-now            --> as2controlv2/control.(*ControlSystem).RoutePOSTWaterNow-fm (3 handlers)
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Environment variable PORT is undefined. Using port :8080 by default
+[GIN-debug] Listening and serving HTTP on :8080
+[GIN] 2024/10/22 - 10:55:42 | 200 |     146.342µs |  192.168.77.196 | GET      "/api/warnings"
+[GIN] 2024/10/22 - 10:57:00 | 200 |      26.029µs |  192.168.77.196 | GET      "/api/warnings"
+[GIN] 2024/10/22 - 10:57:19 | 200 |       23.53µs |  192.168.77.196 | GET      "/api/warnings"
+[GIN] 2024/10/22 - 10:58:59 | 200 |     221.902µs |  192.168.77.196 | POST     "/api/cancel?unit=1"
+[GIN] 2024/10/22 - 11:03:43 | 200 |      22.758µs |  192.168.77.196 | GET      "/api/warnings"

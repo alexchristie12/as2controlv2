@@ -152,6 +152,7 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 		}
 		sensorReadings[i] = SensorReading{Name: readingParts[0], Value: value}
 	}
+	sc.conn.Flush()
 	return sensorReadings, nil
 }
 
@@ -183,7 +184,7 @@ func (sc *SerialConnection) SwitchDevice(newDevice uint) error {
 	if err := sc.WriteToDevice(fmt.Sprintf("c%d\n\r", newDevice)); err != nil {
 		return err
 	}
-	time.Sleep(3000 * time.Millisecond)
+	time.Sleep(5 * time.Second)
 	if err := sc.WriteToDevice(" \r\n"); err != nil {
 		return err
 	}

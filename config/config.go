@@ -125,7 +125,7 @@ func MakeTestingConfig() Config {
 			TimeoutSeconds: 5,
 		},
 		DatabaseConfig: InfluxDBConfig{
-			URL:          "http://192.168.0.73:8086",
+			URL:          "http://192.168.77.196:8086",
 			Organisation: "Water_Monitoring",
 			Bucket:       "testing",
 			// Token:        "1vCqkEI_vBPdjuoOBrFNI5JA2yIV3C8DnD2C3KyWpgq3XWkdAXM7cHbo2fAxh5jZt2ppFhD2Q1PRoO99bBuArw==",
@@ -143,11 +143,11 @@ func MakeTestingConfig() Config {
 				BLEAddress: "",
 				UnitNumber: 1,
 			},
-			{
-				UnitName:   "unit_2",
-				BLEAddress: "",
-				UnitNumber: 2,
-			},
+			// {
+			// 	UnitName:   "unit_2",
+			// 	BLEAddress: "",
+			// 	UnitNumber: 2,
+			// },
 			// {
 			// 	UnitName:   "unit_3",
 			// 	BLEAddress: "FF:FF:FF:FF:FF:FF",
@@ -158,11 +158,11 @@ func MakeTestingConfig() Config {
 			// 	BLEAddress: "FF:FF:FF:FF:FF:FF",
 			// 	UnitNumber: 4,
 			// },
-			{
-				UnitName:   "unit_5",
-				BLEAddress: "",
-				UnitNumber: 5,
-			},
+			// {
+			// 	UnitName:   "unit_5",
+			// 	BLEAddress: "",
+			// 	UnitNumber: 5,
+			// },
 		},
 	}
 }

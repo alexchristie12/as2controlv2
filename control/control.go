@@ -277,9 +277,15 @@ func (cs *ControlSystem) CheckWatering() {
 	*/
 	for i, rmu := range cs.currentSensorAverages {
 		if rmu.SoilMoisture < 25 {
+			if _, ok := cs.systemTiming.NextWateringTime[cs.systemConfig.RemoteUnitConfigs[i].UnitNumber]; ok {
+				continue
+			}
+			if _, ok := cs.systemTiming.WateringUntilTime[cs.systemConfig.RemoteUnitConfigs[i].UnitNumber]; ok {
+				continue
+			}
 			if cs.systemConfig.Mode == "automatic" {
 				// Set the watering to go off in 20 minutes
-				cs.systemTiming.NextWateringTime[cs.systemConfig.RemoteUnitConfigs[i].UnitNumber] = time.Now().Add(1 * time.Minute)
+				cs.systemTiming.NextWateringTime[cs.systemConfig.RemoteUnitConfigs[i].UnitNumber] = time.Now()
 				cs.logger.Info(fmt.Sprintf("scheduling unit number %d for watering in one minute", cs.systemConfig.RemoteUnitConfigs[i].UnitNumber))
 			} else if cs.systemConfig.Mode == "manual" {
 				// Just suggest that we water, send shit to Grafana
@@ -298,7 +304,13 @@ func (cs *ControlSystem) CheckForEnvironmentalIssues() {
 func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
 	// We need to be in the right connection to do this right. So we do this when we
 	// get the sensor readings
-	err := cs.serialHandler.WriteToDevice("water_on=1\r\n")
+	if cs.systemTiming.WateringUntilTime == nil {
+		cs.systemTiming.WateringUntilTime = make(map[uint]time.Time, 0)
+	}
+	if cs.systemTiming.NextWateringTime == nil {
+		cs.systemTiming.NextWateringTime = make(map[uint]time.Time, 0)
+	}
+	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_on=%d\r\n", unitNumber))
 	if err != nil {
 		return err
 	}
@@ -306,7 +318,7 @@ func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
 	cs.logger.Info(fmt.Sprintf("turning on watering for unit %d", unitNumber))
 	delete(cs.systemTiming.NextWateringTime, unitNumber)
 	// Then set a timer to water for some amount of time, maybe 20 minutes
-	cs.systemTiming.WateringUntilTime[unitNumber] = time.Now().Add(2 * time.Minute)
+	cs.systemTiming.WateringUntilTime[unitNumber] = time.Now().Add(30 * time.Second)
 	return nil
 }
 
@@ -332,7 +344,13 @@ func (cs *ControlSystem) checkIfNeedsWateringOff(unitNumber uint) bool {
 }
 
 func (cs *ControlSystem) HandleWateringOffEvent(unitNumber uint) error {
-	err := cs.serialHandler.WriteToDevice("water_on=0\r\n")
+	if cs.systemTiming.WateringUntilTime == nil {
+		cs.systemTiming.WateringUntilTime = make(map[uint]time.Time, 0)
+	}
+	if cs.systemTiming.NextWateringTime == nil {
+		cs.systemTiming.NextWateringTime = make(map[uint]time.Time, 0)
+	}
+	err := cs.serialHandler.WriteToDevice(fmt.Sprintf("water_off=%d\r\n", unitNumber))
 	if err != nil {
 		return err
 	}
@@ -356,13 +374,13 @@ func (cs *ControlSystem) ChangeActiveConnection(unitNumber uint) error {
 	}
 
 	// Disconnect from the current active connection
-	err = cs.serialHandler.WriteToDevice("K,1\r\n")
+	err = cs.serialHandler.WriteToDevice("k,1\r\n")
 	if err != nil {
 		return err
 	}
 
 	// Connect to the next device
-	err = cs.serialHandler.WriteToDevice(fmt.Sprintf("C%d\r\n", unitNumber))
+	err = cs.serialHandler.WriteToDevice(fmt.Sprintf("c%d\r\n", unitNumber))
 	if err != nil {
 		return err
 	}
