@@ -1,0 +1,55 @@
+{
+  "name": "example_system_config",
+  "mode": "automatic",
+  "weather_scrape_interval": 3600,
+  "remote_interval_seconds": 60,
+  "serial_config": {
+    "serial_port": "/dev/ttyS0",
+    "baud_rate": 115200,
+    "timeout_sec": 5
+  },
+  "influxdb_config": {
+    "url": "http://localhost:8086",
+    "string": "My_Organisation",
+    "bucket": "My_Bucket",
+    "token": "my_super_long_token"
+  },
+  "weather_api_config": {
+    "url": "http://api.openweathermap.org",
+    "token": "my_super_long_open_weathermap_config",
+    "latitude": -19.2569391,
+    "longitude": 146.8239537
+  },
+  "remote_configs": [
+    {
+      "name": "unit_1",
+      "ble_address": "FF:FF:FF:FF:FF:FF",
+      "number": 1,
+      "soil_type": ""
+    },
+    {
+      "name": "unit_2",
+      "ble_address": "FF:FF:FF:FF:FF:FF",
+      "number": 2,
+      "soil_type": ""
+    },
+    {
+      "name": "unit_3",
+      "ble_address": "FF:FF:FF:FF:FF:FF",
+      "number": 3,
+      "soil_type": ""
+    },
+    {
+      "name": "unit_4",
+      "ble_address": "FF:FF:FF:FF:FF:FF",
+      "number": 4,
+      "soil_type": ""
+    },
+    {
+      "name": "unit_5",
+      "ble_address": "FF:FF:FF:FF:FF:FF",
+      "number": 5,
+      "soil_type": ""
+    }
+  ]
+}

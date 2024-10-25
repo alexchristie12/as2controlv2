@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// Overall struct for the control system
 type ControlSystem struct {
 	logger *slog.Logger
 
@@ -21,25 +22,11 @@ type ControlSystem struct {
 	weatherHandler        weather.WeatherAPI           // Connection to pull data from OpenWeatherMap
 	serialHandler         serial.SerialConnection      // Connection to the serial port (Bluetooth module)
 	currentWeatherValues  weather.CurrentWeatherResult // The current weather prediction
-	yesterdaysRainValue   weather.RainResult           // The rain from the previous day
 	currentSensorAverages []db.CurrentLocalValues      // The current average from all the sensor readings
-	wateringStats         []WateringStats              // Store information on whether we need to water a particular zone
 	systemTiming          Timings                      // The time coordination for the whole system
 }
 
-type CurrentPrediction struct {
-}
-
-type RainStats struct {
-	TimeSinceLastRain time.Time
-}
-
-type WateringStats struct {
-	ZoneID             uint      // The corresponding zone ID
-	TimeSinceLastWater time.Time // The last time the lawn was watered
-	TimeToNextWater    time.Time // The time until we should water again
-}
-
+// Struct to store the timings for the system
 type Timings struct {
 	NextRemoteUnitFetchTime    time.Time          // The next time to fetch data from the remote units
 	NextWeatherReportFetchTime time.Time          // The next time to fetch weather data from open weather map
@@ -48,6 +35,7 @@ type Timings struct {
 	WateringUntilTime          map[uint]time.Time // This is where we store the time we water until, deleted after we are done
 }
 
+// Initialise the control system
 func ControlSystemInit(logger *slog.Logger, config config.Config, dbHandler db.DBConnection, weatherHandler weather.WeatherAPI, serialHandler serial.SerialConnection) *ControlSystem {
 	return &ControlSystem{
 		systemConfig:          config,
@@ -56,9 +44,7 @@ func ControlSystemInit(logger *slog.Logger, config config.Config, dbHandler db.D
 		weatherHandler:        weatherHandler,
 		serialHandler:         serialHandler,
 		currentWeatherValues:  weather.CurrentWeatherResult{},
-		yesterdaysRainValue:   weather.RainResult{},
 		currentSensorAverages: make([]db.CurrentLocalValues, len(config.RemoteUnitConfigs)),
-		wateringStats:         makeWateringStats(config.RemoteUnitConfigs),
 		systemTiming:          makeTimings(),
 	}
 }
@@ -72,14 +58,7 @@ func makeTimings() Timings {
 	}
 }
 
-func makeWateringStats(configs []config.RemoteUnitConfig) []WateringStats {
-	wateringStats := make([]WateringStats, len(configs))
-	for i, conf := range wateringStats {
-		wateringStats[i].ZoneID = conf.ZoneID
-	}
-	return wateringStats
-}
-
+// Fetch the readings from a single remote unit. NOTE: This function is probably too long
 func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, currentValues *db.CurrentLocalValues) error {
 	readings, err := cs.serialHandler.PollDevice(rmu.UnitNumber)
 	cs.logger.Debug(fmt.Sprint(readings))
@@ -87,14 +66,6 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 		cs.logger.Error(fmt.Sprintf("could not get readings from device zone id: %d", rmu.UnitNumber))
 		return err
 	}
-	// Send off the readings to influxDB, this is wrong, should do just measurement (temperature, humidity, soil_moisture, not with unit name)
-	// err = cs.dbHandler.WriteSensorReadings(readings, rmu, cs.systemConfig.Name)
-	// if err != nil {
-	// 	cs.logger.Error(fmt.Sprintf("could not write readings for device zone id %d to influxDB: %e", rmu.UnitNumber, err))
-	// 	return err
-	// }
-	// Now look for values, pray that we have the right values, first value must be the zone id, last must be the flow rate
-	// These act as integrity checks
 
 	// We don't necessarily want to exit now
 	hardwareID := readings[0].Value
@@ -208,6 +179,7 @@ func (cs *ControlSystem) FetchRemoteUnitReading(rmu config.RemoteUnitConfig, cur
 	return nil
 }
 
+// Fetch all of the currently configured remote units
 func (cs *ControlSystem) FetchRemoteUnitReadings() error {
 	cs.logger.Info(fmt.Sprintf("current unit is: %d", cs.serialHandler.CurrentDevice))
 	// For each remote unit, grab all the values
@@ -232,6 +204,7 @@ func (cs *ControlSystem) FetchRemoteUnitReadings() error {
 	return nil
 }
 
+// Fetch the current weather data from OpenWeatherMap
 func (cs *ControlSystem) FetchWeatherData() error {
 	weatherResult, err := cs.weatherHandler.GetCurrentWeather()
 	if err != nil {
@@ -249,25 +222,7 @@ func (cs *ControlSystem) FetchWeatherData() error {
 	return nil
 }
 
-/*
-Because we have to pay for the API, we cannot use this anymore
-*/
-func (cs *ControlSystem) FetchRainData() error {
-	rainResult, err := cs.weatherHandler.GetYesterdaysRain()
-	if err != nil {
-		return err
-	}
-	// Send of this data and make recommendations based on that
-	// I think that if we got 4mm of rain that day, we don't need
-	// to water the grass
-	cs.yesterdaysRainValue = rainResult
-	// Write to influxDB
-
-	cs.logger.Info("fetched rain data")
-	return nil
-}
-
-// Check that we need to water, for each zone, and for how long
+// Check that we need to water, for each zone, and scedule watering
 func (cs *ControlSystem) CheckWatering() {
 	/*
 		Check the current soil moisture in each zone, if it below the required threshold,
@@ -295,11 +250,6 @@ func (cs *ControlSystem) CheckWatering() {
 	}
 }
 
-// Check if there is any environmental issues, temperature, humidity mainly
-func (cs *ControlSystem) CheckForEnvironmentalIssues() {
-
-}
-
 // Handle watering a particular zone
 func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
 	// We need to be in the right connection to do this right. So we do this when we
@@ -322,6 +272,7 @@ func (cs *ControlSystem) HandleWateringOnEvent(unitNumber uint) error {
 	return nil
 }
 
+// Check if we need to turn watering on for a given unit
 func (cs *ControlSystem) checkIfNeedsWateringOn(unitNumber uint) bool {
 	// Check if it is to be watered now
 	if val, ok := cs.systemTiming.NextWateringTime[unitNumber]; !ok {
@@ -333,6 +284,7 @@ func (cs *ControlSystem) checkIfNeedsWateringOn(unitNumber uint) bool {
 	}
 }
 
+// Check if we need to turn watering off for a given unit
 func (cs *ControlSystem) checkIfNeedsWateringOff(unitNumber uint) bool {
 	if val, ok := cs.systemTiming.WateringUntilTime[unitNumber]; !ok {
 		return false // We are not watering at the moment
@@ -343,6 +295,7 @@ func (cs *ControlSystem) checkIfNeedsWateringOff(unitNumber uint) bool {
 	}
 }
 
+// Handle turning off watering for a particular device
 func (cs *ControlSystem) HandleWateringOffEvent(unitNumber uint) error {
 	if cs.systemTiming.WateringUntilTime == nil {
 		cs.systemTiming.WateringUntilTime = make(map[uint]time.Time, 0)
@@ -360,35 +313,7 @@ func (cs *ControlSystem) HandleWateringOffEvent(unitNumber uint) error {
 	return nil
 }
 
-func (cs *ControlSystem) ChangeActiveConnection(unitNumber uint) error {
-	/*
-		$$$
-		K,1
-		Cx
-	*/
-
-	// Enter command mode
-	err := cs.serialHandler.WriteToDevice("$$$\r\n")
-	if err != nil {
-		return err
-	}
-
-	// Disconnect from the current active connection
-	err = cs.serialHandler.WriteToDevice("k,1\r\n")
-	if err != nil {
-		return err
-	}
-
-	// Connect to the next device
-	err = cs.serialHandler.WriteToDevice(fmt.Sprintf("c%d\r\n", unitNumber))
-	if err != nil {
-		return err
-	}
-
-	// Otherwise we have probably succeeded, it spits out some verification stuff
-	return nil
-}
-
+// Collection of sensor warnings, would be better as a type warnings []warning
 type warnings struct {
 	sensorWarnings []warning
 }
@@ -399,6 +324,7 @@ type warning struct {
 	Msg   string  `json:"message"`
 }
 
+// Gets the warnings for the system, based on most current data
 func (cs *ControlSystem) GetNewWarnings() warnings {
 	/*
 		In this function we are going to check for any warning, especially
@@ -421,6 +347,7 @@ func (cs *ControlSystem) GetNewWarnings() warnings {
 	}
 }
 
+// Generate temperature sensor warnings from the last remote unit poll
 func (cs *ControlSystem) generateTemperatureSensorWarnings() []warning {
 	ws := make([]warning, 0)
 	for i, v := range cs.currentSensorAverages {
@@ -442,6 +369,7 @@ func (cs *ControlSystem) generateTemperatureSensorWarnings() []warning {
 	return ws
 }
 
+// Generate humidity warnings from the last set of remote unit poll.
 func (cs *ControlSystem) generateHumiditySensorWarnings() []warning {
 	ws := make([]warning, 0)
 	for i, v := range cs.currentSensorAverages {
@@ -462,6 +390,7 @@ func (cs *ControlSystem) generateHumiditySensorWarnings() []warning {
 	return ws
 }
 
+// Generate weather warnings from the last weather data fetch
 func (cs *ControlSystem) generateWeatherWarnings() []warning {
 	// Check the cloud cover mainly,
 	ws := make([]warning, 0)
@@ -498,27 +427,9 @@ func (cs *ControlSystem) CheckTimings() error {
 			cs.logger.Error(fmt.Sprintf("could not fetch weather data: %s", err.Error()))
 		}
 
-		// // Check rain times
-		// if err := cs.CheckRainFetchTimes(); err != nil {
-		// 	cs.logger.Error(fmt.Sprintf("could not fetch rain data: %s", err.Error()))
-		// }
-
-		// Check watering start times
-		// if err := cs.CheckWateringOnTimes(); err != nil {
-		// 	cs.logger.Error(fmt.Sprintf("could not toggle watering for remote unit: %s", err.Error()))
-		// }
-
-		// Check watering stop times
-		// if err := cs.CheckWateringOffTimes(); err != nil {
-		// 	cs.logger.Error(fmt.Sprintf("could not toggle off watering from remote unit: %s", err.Error()))
-		// }
-
 		// Check that we need to water soon
 		cs.CheckWatering()
 
-		// Check for warnings...
-
-		// Other times that I can't think of
 	}
 }
 
@@ -542,17 +453,6 @@ func (cs *ControlSystem) CheckWeatherFetchTimes() error {
 		// Set the next time
 		cs.systemTiming.NextWeatherReportFetchTime = time.Now().Add(time.Duration(cs.systemConfig.WeatherIntervalSeconds) * time.Second)
 		if err := cs.FetchWeatherData(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Check the rain fetching times for the system
-func (cs *ControlSystem) CheckRainFetchTimes() error {
-	if time.Now().After(cs.systemTiming.NextRainReportFetchTime) {
-		cs.systemTiming.NextRainReportFetchTime = time.Now().Add(24 * time.Hour)
-		if err := cs.FetchRainData(); err != nil {
 			return err
 		}
 	}

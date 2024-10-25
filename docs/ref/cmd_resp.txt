@@ -1,5 +1,0 @@
-poll=1
-hardware_id=1,temperature_0=24.36,temperature_1=99999.00,humidity_0=50.72,humidity_1=99999.00,soil_moisture_0=40.00,soil_moisture_1=99999.00,soil_moisture_2=41.00,soil_moisture_3=99999.00,flow_rate_0=0.00,flow_rate_1=99999.00,flow_rate_2=0.00,flow_rate_3=99999.00,water_on=0
-
-water_on=1
-water_off=1

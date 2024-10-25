@@ -18,10 +18,11 @@ import (
 )
 
 func CheckArgs(args []string) error {
-	if len(args) < 2 {
+	if len(args) == 1 {
 		fmt.Println("as2controlv2 run <config file> | example | help")
+		return errors.New("no args given")
 	}
-	if args[1] != "run" || args[1] == "example" || args[1] == "help" {
+	if args[1] != "run" && args[1] != "example" && args[1] != "help" {
 		return errors.New("invalid use of program, valid args are 'run', 'example', or 'help'")
 	}
 
@@ -60,6 +61,14 @@ func HandleExampleConfigArg() {
 	fmt.Print(string(bytes))
 }
 
+func HandleHelpArg() {
+	fmt.Println(`as2controlv2 - Irrigation system control system
+args:
+		- help: Print the help information of the system
+		- example: print an example config to standard output
+		- run <config-file>: run the control system with the given config file`)
+}
+
 func SetupRoutes(r *gin.Engine, cs *control.ControlSystem) {
 	r.GET("/api/warnings", cs.RouteGETWarnings)
 	r.POST("/api/delay", cs.RoutePOSTDelayWatering)
@@ -83,13 +92,21 @@ func main() {
 		os.Exit(0)
 	}
 
+	if os.Args[1] == "help" {
+		HandleHelpArg()
+		os.Exit(0)
+	}
+
 	if os.Args[1] != "run" {
 		os.Exit(0)
 	}
 
 	// Load the config file
-	// conf, err := LoadConfig(os.Args[2])
-	conf := config.MakeTestingConfig()
+	conf, err := LoadConfig(os.Args[2])
+	if err != nil {
+		log.Fatal(err)
+	}
+	// conf := config.MakeTestingConfig()
 	for _, v := range conf.RemoteUnitConfigs {
 		fmt.Println("Got unit number ", v.UnitNumber)
 	}

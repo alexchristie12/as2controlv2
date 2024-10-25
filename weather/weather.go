@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 )
 
 // This package is intended to pull data from Openweather map, for now we are only doing current data
 // not predicitons yet
 
+// Stores the weather API information
 type WeatherAPI struct {
 	URL       string
 	Token     string
@@ -20,6 +20,7 @@ type WeatherAPI struct {
 	Longitude float64
 }
 
+// Struct that holds the response from OpenWeatherMap
 type CurrentWeatherResult struct {
 	Coord      Coord     `json:"coord"`
 	Weather    []Weather `json:"weather"`
@@ -36,6 +37,7 @@ type CurrentWeatherResult struct {
 	Cod        int       `json:"cod"`
 }
 
+// Represent the weather JSON object
 type Weather struct {
 	ID          int    `json:"id"`
 	Main        string `json:"main"`
@@ -43,11 +45,13 @@ type Weather struct {
 	Icon        string `json:"icon"`
 }
 
+// Represents the coord JSON object
 type Coord struct {
 	Latitude  float64 `json:"lat"`
 	Longitude float64 `json:"long"`
 }
 
+// Represents the main JSON object
 type Main struct {
 	TempKelvin          float64 `json:"temp"`
 	TempFeelsLikeKelvin float64 `json:"feels_like"`
@@ -59,15 +63,18 @@ type Main struct {
 	GroundLevelPressure float64 `json:"grnd_level"`
 }
 
+// Represents the wind JSON object
 type Wind struct {
 	Speed float64 `json:"speed"`
 	Deg   float64 `json:"deg"`
 }
 
+// Represents the clouds JSON object
 type Clouds struct {
 	All float64 `json:"all"`
 }
 
+// Represents the sys JSON object
 type Sys struct {
 	Type    int    `json:"type"`
 	ID      int    `json:"id"`
@@ -76,12 +83,7 @@ type Sys struct {
 	Sunset  uint   `json:"sunset"`
 }
 
-type RainResult struct {
-	Date                 string  `json:"date"`
-	TotalRain            float64 `json:"rain"`
-	NumberOfMeasurements uint    `json:"count"`
-}
-
+// Initialise the weather connection
 func WeatherInit(conf config.OpenWeatherMapConfig) WeatherAPI {
 	return WeatherAPI{
 		URL:       conf.URL,
@@ -91,6 +93,7 @@ func WeatherInit(conf config.OpenWeatherMapConfig) WeatherAPI {
 	}
 }
 
+// Get the current weather from OpenWeatherMap
 func (w *WeatherAPI) GetCurrentWeather() (CurrentWeatherResult, error) {
 	fullUrl := fmt.Sprintf("%s/data/2.5/weather?lat=%f&lon=%f&appid=%s", w.URL, w.Latitude, w.Longitude, w.Token)
 	resp, err := http.Get(fullUrl)
@@ -116,35 +119,4 @@ func (w *WeatherAPI) GetCurrentWeather() (CurrentWeatherResult, error) {
 	// Write these results into influxDB
 
 	return result, nil
-}
-
-/*
-Unfortunately, we are unable to use the rain API from openweathermap (It costs money!)
-*/
-func (w *WeatherAPI) GetYesterdaysRain() (RainResult, error) {
-	timeNow := time.Now().Unix()
-	timeYesterday := time.Now().Add(-24 * time.Hour).Unix()
-	fullUrl := fmt.Sprintf("http://history.openweathermap.org/data/2.5/history/accumulated_precipitation?lat=%f&long=%f&start=%d&end=%d&appid=%s", w.Latitude, w.Longitude, timeYesterday, timeNow, w.Token)
-	resp, err := http.Get(fullUrl)
-	if err != nil {
-		return RainResult{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return RainResult{}, errors.New(fmt.Sprint("unexpected status code: ", resp.StatusCode))
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return RainResult{}, err
-	}
-
-	var result RainResult
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return RainResult{}, err
-	}
-
-	return result, err
 }

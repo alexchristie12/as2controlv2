@@ -13,6 +13,7 @@ import (
 	tarmSerial "github.com/tarm/serial"
 )
 
+// Stores the serial connection
 type SerialConnection struct {
 	conn           *tarmSerial.Port
 	receieveBuffer [512]byte
@@ -20,11 +21,13 @@ type SerialConnection struct {
 	logger         *slog.Logger
 }
 
+// A single sensor reading
 type SensorReading struct {
 	Name  string
 	Value float64
 }
 
+// Initialise the serial connection
 func SerialConnectionInit(conf config.SerialConfig, logger *slog.Logger) (SerialConnection, error) {
 	c := tarmSerial.Config{
 		Name:        conf.Port,
@@ -42,6 +45,7 @@ func SerialConnectionInit(conf config.SerialConfig, logger *slog.Logger) (Serial
 	return serialConn, nil
 }
 
+// Send the poll command to a particular device
 func (sc *SerialConnection) sendPollCmd(deviceNumber uint) (string, error) {
 	// // First write to the serial connection, to clear the buffer
 	_, err := sc.conn.Write([]byte(" \r\n"))
@@ -156,6 +160,7 @@ func (sc *SerialConnection) PollDevice(deviceNumber uint) ([]SensorReading, erro
 	return sensorReadings, nil
 }
 
+// Write a message to a device
 func (sc *SerialConnection) WriteToDevice(msg string) error {
 	n, err := sc.conn.Write([]byte(msg))
 	if n != len(msg) {
@@ -167,6 +172,7 @@ func (sc *SerialConnection) WriteToDevice(msg string) error {
 	return nil
 }
 
+// Switch devices
 func (sc *SerialConnection) SwitchDevice(newDevice uint) error {
 	if newDevice == sc.CurrentDevice {
 		return nil // We are already on the correct device

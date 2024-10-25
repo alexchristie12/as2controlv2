@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 )
 
+// Struct that stores the configuration for the control system
 type Config struct {
 	Name                   string               `json:"name"`
 	Mode                   string               `json:"mode"` // This can be either automatic, or manual
@@ -17,9 +18,7 @@ type Config struct {
 
 type RemoteUnitConfig struct {
 	UnitName   string `json:"name"`
-	BLEAddress string `json:"ble_address"`
 	UnitNumber uint   `json:"number"`
-	SoilType   string `json:"soil_type"` // Can be clay, sand, loam
 }
 
 type InfluxDBConfig struct {
@@ -42,8 +41,10 @@ type SerialConfig struct {
 	TimeoutSeconds uint   `json:"timeout_sec"`
 }
 
+// Make an example configuration, for the example arg
 func MakeExampleConfig() Config {
 	return Config{
+		Mode:                   "automatic",
 		Name:                   "example_system_config",
 		WeatherIntervalSeconds: 3600,
 		RemoteIntervalSeconds:  60,
@@ -67,27 +68,22 @@ func MakeExampleConfig() Config {
 		RemoteUnitConfigs: []RemoteUnitConfig{
 			{
 				UnitName:   "unit_1",
-				BLEAddress: "FF:FF:FF:FF:FF:FF",
 				UnitNumber: 1,
 			},
 			{
 				UnitName:   "unit_2",
-				BLEAddress: "FF:FF:FF:FF:FF:FF",
 				UnitNumber: 2,
 			},
 			{
 				UnitName:   "unit_3",
-				BLEAddress: "FF:FF:FF:FF:FF:FF",
 				UnitNumber: 3,
 			},
 			{
 				UnitName:   "unit_4",
-				BLEAddress: "FF:FF:FF:FF:FF:FF",
 				UnitNumber: 4,
 			},
 			{
 				UnitName:   "unit_5",
-				BLEAddress: "FF:FF:FF:FF:FF:FF",
 				UnitNumber: 5,
 			},
 		},
@@ -113,6 +109,7 @@ func LoadConfig(bytes []byte) (Config, error) {
 	return conf, nil
 }
 
+// Make the config used throughout testing
 func MakeTestingConfig() Config {
 	return Config{
 		Name:                   "example_system_config",
@@ -140,7 +137,6 @@ func MakeTestingConfig() Config {
 		RemoteUnitConfigs: []RemoteUnitConfig{
 			{
 				UnitName:   "unit_1",
-				BLEAddress: "",
 				UnitNumber: 1,
 			},
 			// {

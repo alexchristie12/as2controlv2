@@ -2,7 +2,6 @@ package db
 
 import (
 	"as2controlv2/config"
-	"as2controlv2/serial"
 	"as2controlv2/weather"
 	"context"
 	"errors"
@@ -13,16 +12,19 @@ import (
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 )
 
+// DB Connection to InfluxDB
 type DBConnection struct {
 	client   influxdb2.Client
 	writeAPI influxAPI.WriteAPIBlocking
 }
 
+// Tags for a given metric
 type Tags struct {
 	SystemName     string
 	RemoteUnitName string
 }
 
+// The current local values for a remote unit. Essentially the average between the sensors
 type CurrentLocalValues struct {
 	Temperature  float64
 	Humidity     float64
@@ -87,23 +89,7 @@ func (db *DBConnection) WriteCurrentWeatherData( /*Need to implement*/ ) error {
 	return errors.New("not yet implemented")
 }
 
-// This function write multiple sensor readings pulling the the correspoding remote unit, hence the config
-func (db *DBConnection) WriteSensorReadings(readings []serial.SensorReading, conf config.RemoteUnitConfig, systemName string) error {
-	// Construct the tags
-	tags := Tags{
-		SystemName:     systemName,
-		RemoteUnitName: conf.UnitName,
-	}
-	for _, r := range readings {
-		// Should do this after it is averaged out
-		err := db.WriteSensorMetric(r.Name, float64(r.Value), tags)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
+// Write the metrics for a single unit
 func (db *DBConnection) WriteUnitMetrics(measurementName string, localValues CurrentLocalValues, tags Tags) error {
 	tagsMap := map[string]string{
 		"system_name":      tags.SystemName,
@@ -123,6 +109,7 @@ func (db *DBConnection) WriteUnitMetrics(measurementName string, localValues Cur
 	return nil
 }
 
+// Write the weather metrics to InfluxDB
 func (db *DBConnection) WriteWeatherMetrics(wr weather.CurrentWeatherResult) error {
 	tags := map[string]string{
 		"location": wr.Name,

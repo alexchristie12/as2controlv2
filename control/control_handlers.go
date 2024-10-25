@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Route GET: Produce the warnings for Grafana
 func (cs *ControlSystem) RouteGETWarnings(c *gin.Context) {
 	// Get the warnings
 	warnings := cs.generateTemperatureSensorWarnings()
@@ -17,6 +18,7 @@ func (cs *ControlSystem) RouteGETWarnings(c *gin.Context) {
 	c.JSON(http.StatusOK, warnings)
 }
 
+// Route POST: Delay watering for a particular unit by 60 minutes
 func (cs *ControlSystem) RoutePOSTDelayWatering(c *gin.Context) {
 	// Get the delay, will look like /api/delay?unit=0
 	unitStr := c.Query("unit")
@@ -47,6 +49,7 @@ func (cs *ControlSystem) RoutePOSTDelayWatering(c *gin.Context) {
 	})
 }
 
+// Route POST: Cancel watering for a given unit
 func (cs *ControlSystem) RoutePOSTCancelWatering(c *gin.Context) {
 	unitStr := c.Query("unit")
 	if unitStr == "" {
@@ -96,6 +99,7 @@ func (cs *ControlSystem) RoutePOSTWaterNow(c *gin.Context) {
 		})
 		return
 	}
+	// Check if it is already scheduled
 	ok := false
 	for _, unitConfig := range cs.systemConfig.RemoteUnitConfigs {
 		if unitConfig.UnitNumber == uint(unit) {
